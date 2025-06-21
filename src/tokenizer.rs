@@ -339,7 +339,7 @@ fn is_right_rocket(tokenizer: &mut Tokenizer) -> bool {
 }
 
 fn is_and(tokenizer: &mut Tokenizer) -> bool {
-    for (i, c) in "and".chars().enumerate() {
+    for (i, c) in " and ".chars().enumerate() {
         if c != tokenizer.get_position_char(i + tokenizer.pos) {
             return false;
         }
@@ -348,7 +348,7 @@ fn is_and(tokenizer: &mut Tokenizer) -> bool {
 }
 
 fn is_or(tokenizer: &mut Tokenizer) -> bool {
-    for (i, c) in "or".chars().enumerate() {
+    for (i, c) in " or ".chars().enumerate() {
         if c != tokenizer.get_position_char(i + tokenizer.pos) {
             return false;
         }
@@ -750,16 +750,16 @@ pub fn tokenize(line: &String) -> Vec<Token> {
 
         if is_and(&mut tokenizer) {
             let (line, column) = tokenizer.store_position();
-            tokenizer.column += 3;
+            tokenizer.column += 5;
             tokenizer.tokens.push(Token{kind: TokenKind::And, line, column});
-            tokenizer.pos += 3;
+            tokenizer.pos += 5;
             continue;
         }
         if is_or(&mut tokenizer) {
             let (line, column) = tokenizer.store_position();
-            tokenizer.column += 2;
+            tokenizer.column += 4;
             tokenizer.tokens.push(Token{kind: TokenKind::Or, line, column});
-            tokenizer.pos += 2;
+            tokenizer.pos += 4;
             continue;
         }
 
