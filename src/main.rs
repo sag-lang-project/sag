@@ -58,11 +58,13 @@ fn run_repl() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn run_file(file_path: String) -> Result<(), Box<dyn std::error::Error>> {
+fn run_file(file_path: String, debug: bool) -> Result<(), Box<dyn std::error::Error>> {
     let file = std::fs::read_to_string(file_path)?;
 
     let tokens = tokenize(&file);
-    println!("tokens: {:?}", tokens);
+    if debug {
+        println!("tokens: {:?}", tokens);
+    }
     let mut env = Env::new();
     let builtins = register_builtins(&mut env);
     let mut parser = SagParser::new(tokens.to_vec(), builtins.clone());
@@ -71,13 +73,17 @@ fn run_file(file_path: String) -> Result<(), Box<dyn std::error::Error>> {
         eprint!("{}", e.message_with_source(&file));
         return Ok(());
     }
-    println!("ast: {:?}", ast_nodes);
+    if debug {
+        println!("ast: {:?}", ast_nodes);
+    }
     let result = evals(ast_nodes.unwrap(), &mut env);
     if let Err(e) = result {
         eprint!("{}", e.message_with_source(&file));
         return Ok(());
     }
-    println!("result: {:?}", result);
+    if debug {
+        println!("env: {:?}", env);
+    }
     Ok(())
 }
 
@@ -88,7 +94,8 @@ fn main() {
             install_package(package_or_path);
         }
         Commands::Run {file_path} => {
-            if let Err(e) = run_file(file_path) {
+            let debug = false; // Set to true if you want debug mode
+            if let Err(e) = run_file(file_path, debug) {
                 eprintln!("Error: {}", e);
             }
         }
