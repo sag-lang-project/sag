@@ -44,9 +44,12 @@ enum Commands {
 }
 
 fn run_repl_with_rc() -> Result<(), Box<dyn std::error::Error>> {
-    let mut rc_env = RcEnv::new();
-    let mut env = rc_env.to_env();
+    // 初期環境を作成
+    let mut env = Env::new();
+    // ビルトイン関数を登録
     let builtins = register_builtins(&mut env);
+    // Rc環境に変換
+    let mut rc_env = RcEnv::from_env(&env);
     
     println!("SAG REPL (with Rc optimization)");
     println!("Type expressions to evaluate them. Press Ctrl+D to exit.");
@@ -109,9 +112,12 @@ fn run_file_with_rc(file_path: String, debug: bool) -> Result<(), Box<dyn std::e
         println!("tokens: {:?}", tokens);
     }
     
-    let mut rc_env = RcEnv::new();
-    let mut env = rc_env.to_env();
+    // 初期環境を作成
+    let mut env = Env::new();
+    // ビルトイン関数を登録
     let builtins = register_builtins(&mut env);
+    // Rc環境に変換
+    let mut rc_env = RcEnv::from_env(&env);
     
     let mut parser = SagParser::new(tokens.to_vec(), builtins.clone());
     let ast_nodes = parser.parse_lines();

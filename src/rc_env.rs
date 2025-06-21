@@ -79,7 +79,7 @@ impl RcEnv {
                 inner.structs.insert(name.clone(), RcValue::from_value(struct_value));
             }
             
-            // ビルトイン関数をコピー
+            // ビルトイン関数をコピー - 重要: すべてのビルトイン関数を確実にコピー
             for (name, function) in env.get_builtins() {
                 inner.builtins.insert(name.clone(), function.clone());
             }
@@ -93,7 +93,7 @@ impl RcEnv {
             }
         }
         
-        // モジュールをコピー（簡略化 - 実際の実装ではこれを再帰的に処理する必要がある）
+        // モジュールをコピー
         for (name, module_env) in env.get_modules() {
             let rc_module_env = RcEnv::from_env(module_env);
             let mut inner = rc_env.inner.borrow_mut();
@@ -130,7 +130,7 @@ impl RcEnv {
             env.register_struct(struct_value.to_value()).unwrap();
         }
         
-        // ビルトイン関数をコピー
+        // ビルトイン関数をコピー - 重要: すべてのビルトイン関数を確実にコピー
         for (name, function) in &inner.builtins {
             if let Some(builtin_fn) = function.builtin {
                 env.register_builtin(name.clone(), builtin_fn);
@@ -141,11 +141,11 @@ impl RcEnv {
         env.set_scope_stack(inner.scope_stack.clone());
         
         // エクスポートされたシンボルをコピー
-        for (name, _) in &inner.exported_symbols {
+        for (name, symbol_type) in &inner.exported_symbols {
             env.register_exported_symbol(name.clone());
         }
         
-        // モジュールをコピー（簡略化 - 実際の実装ではこれを再帰的に処理する必要がある）
+        // モジュールをコピー
         for (name, module_env) in &inner.modules {
             env.insert_module(name.clone(), module_env.to_env());
         }
