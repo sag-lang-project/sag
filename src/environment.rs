@@ -47,8 +47,8 @@ pub struct MethodInfo {
 
 #[derive(Eq, Hash, PartialEq, Debug, Clone)]
 pub struct VariableKeyInfo {
-    name: String,
-    scope: String,
+    pub name: String,
+    pub scope: String,
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -124,6 +124,43 @@ impl Env {
             modules: HashMap::new(),
             exported_symbols: HashMap::new(),
         }
+    }
+    
+    // アクセサメソッド
+    pub fn get_variable_map(&self) -> &HashMap<VariableKeyInfo, EnvVariableValueInfo> {
+        &self.variable_map
+    }
+    
+    pub fn get_functions(&self) -> &HashMap<String, FunctionInfo> {
+        &self.functions
+    }
+    
+    pub fn get_structs(&self) -> &HashMap<String, Value> {
+        &self.structs
+    }
+    
+    pub fn get_builtins(&self) -> &HashMap<String, FunctionInfo> {
+        &self.builtins
+    }
+    
+    pub fn get_scope_stack(&self) -> &Vec<String> {
+        &self.scope_stack
+    }
+    
+    pub fn get_exported_symbols(&self) -> &HashMap<String, ExportedSymbolType> {
+        &self.exported_symbols
+    }
+    
+    pub fn get_modules(&self) -> &HashMap<String, Env> {
+        &self.modules
+    }
+    
+    pub fn set_scope_stack(&mut self, scope_stack: Vec<String>) {
+        self.scope_stack = scope_stack;
+    }
+    
+    pub fn insert_module(&mut self, name: String, env: Env) {
+        self.modules.insert(name, env);
     }
 
     pub fn register_module(&mut self, module_name: &String, module_path: &String) -> Result<(), String> {
