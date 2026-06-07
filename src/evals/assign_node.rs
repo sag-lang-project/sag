@@ -1,10 +1,19 @@
 use crate::ast::ASTNode;
-use crate::value::Value;
-use crate::environment::{Env, ValueType, EnvVariableType};
+use crate::environment::{Env, EnvVariableType, ValueType};
 use crate::evals::eval;
 use crate::evals::runtime_error::RuntimeError;
+use crate::value::Value;
 
-pub fn assign_node(name: String, value: Box<ASTNode>, value_type: ValueType, variable_type: EnvVariableType, is_new: bool, line: usize, column: usize, env: &mut Env) -> Result<Value, RuntimeError> {
+pub fn assign_node(
+    name: String,
+    value: Box<ASTNode>,
+    value_type: ValueType,
+    variable_type: EnvVariableType,
+    is_new: bool,
+    line: usize,
+    column: usize,
+    env: &mut Env,
+) -> Result<Value, RuntimeError> {
     let value = eval(*value, env)?;
     //let value_type = match value {
     //    Value::Number(_) => ValueType::Number,

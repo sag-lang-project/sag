@@ -119,6 +119,79 @@ SAG provides the following built-in functions:
 - `len(value)`: Returns the length of a list or string
 - `range(start, end, step?)`: Generates a list of numbers from start to end (exclusive) with optional step
 
+## Running
+
+Build and run a `.sag` program with the normal interpreter:
+
+```bash
+cargo run -- run your_program.sag
+```
+
+Run the same program with the Rc-based interpreter:
+
+```bash
+cargo run -- run your_program.sag --use-rc
+```
+
+Start the REPL:
+
+```bash
+cargo run -- repl
+```
+
+Start the Rc REPL:
+
+```bash
+cargo run -- repl --use-rc
+```
+
+## Compilation
+
+SAG currently compiles to a `.sagc` compiled bytecode-style file, not a native executable.
+
+Compile a program:
+
+```bash
+cargo run -- compile your_program.sag
+```
+
+This creates `your_program.sag.sagc` next to the source file by default.
+
+Write the compiled output to a specific path:
+
+```bash
+cargo run -- compile your_program.sag -o out.sagc
+```
+
+Run a compiled file:
+
+```bash
+cargo run -- run your_program.sag.sagc
+```
+
+## Performance Check
+
+For performance checks, avoid benchmarks that print on every iteration because console I/O dominates runtime.
+
+Use [fib_benchmark.sag](./fib_benchmark.sag) instead. It computes Fibonacci repeatedly and prints only once at the end.
+
+Compare the three execution modes:
+
+```bash
+time cargo run --release -- run fib_benchmark.sag
+time cargo run --release -- run fib_benchmark.sag --use-rc
+time cargo run --release -- compile fib_benchmark.sag
+time cargo run --release -- run fib_benchmark.sag.sagc
+```
+
+Meaning of each mode:
+
+- `run`: normal interpreter
+- `run --use-rc`: Rc-based interpreter
+- `run fib_benchmark.sag.sagc`: compiled VM execution
+
+If you only want a functional smoke test, `very_simple.sag` or `loop_test.sag` is enough. If you want to compare speed, use `fib_benchmark.sag`.
+
 ## List Operations
 
 Lists can be created using square brackets and support the following operations:
@@ -201,4 +274,3 @@ x -> print  // prints 1
 // Function composition with pipeline
 |1, 2| -> f1 -> print
 ```
-

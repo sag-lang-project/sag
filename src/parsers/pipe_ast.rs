@@ -1,12 +1,15 @@
 use crate::ast::ASTNode;
+use crate::parsers::parse_error::ParseError;
 use crate::parsers::Parser;
 use crate::token::{Token, TokenKind};
-use crate::parsers::parse_error::ParseError;
 
 impl Parser {
     pub fn parse_function_call_arguments(&mut self) -> Result<ASTNode, ParseError> {
         match self.get_current_token() {
-            Some(Token{kind: TokenKind::Pipe, ..}) => self.consume_token(),
+            Some(Token {
+                kind: TokenKind::Pipe,
+                ..
+            }) => self.consume_token(),
             _ => None,
         };
         let mut arguments = vec![];
@@ -23,6 +26,10 @@ impl Parser {
             arguments.push(value);
         }
         let (line, column) = self.get_line_column();
-        Ok(ASTNode::FunctionCallArgs{args: arguments, line, column})
+        Ok(ASTNode::FunctionCallArgs {
+            args: arguments,
+            line,
+            column,
+        })
     }
 }

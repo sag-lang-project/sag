@@ -1,8 +1,8 @@
 use crate::environment::Env;
 use crate::environment::ValueType;
 use crate::value::Value;
-use std::collections::HashMap;
 use fraction::Fraction;
+use std::collections::HashMap;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub fn register_builtins(env: &mut Env) -> HashMap<(String, String), ValueType> {
@@ -30,11 +30,26 @@ pub fn register_builtins(env: &mut Env) -> HashMap<(String, String), ValueType> 
 
     env.register_builtin("range".to_string(), |args: Vec<Value>| {
         if let [Value::Number(start), Value::Number(end)] = args.as_slice() {
-            Value::List(((*start.numer().unwrap() as i64)..(*end.numer().unwrap() as i64)).map(|x| Value::Number(Fraction::from(x))).collect())
+            Value::List(
+                ((*start.numer().unwrap() as i64)..(*end.numer().unwrap() as i64))
+                    .map(|x| Value::Number(Fraction::from(x)))
+                    .collect(),
+            )
         } else if let [Value::Number(end)] = args.as_slice() {
-            Value::List((0..(*end.numer().unwrap() as i64)).map(|x| Value::Number(Fraction::from(x))).collect())
-        } else if let [Value::Number(start), Value::Number(end), Value::Number(step)] = args.as_slice() {
-            Value::List(((*start.numer().unwrap() as i64..*end.numer().unwrap() as i64).step_by(*step.numer().unwrap() as usize)).map(|x| Value::Number(Fraction::from(x))).collect())
+            Value::List(
+                (0..(*end.numer().unwrap() as i64))
+                    .map(|x| Value::Number(Fraction::from(x)))
+                    .collect(),
+            )
+        } else if let [Value::Number(start), Value::Number(end), Value::Number(step)] =
+            args.as_slice()
+        {
+            Value::List(
+                ((*start.numer().unwrap() as i64..*end.numer().unwrap() as i64)
+                    .step_by(*step.numer().unwrap() as usize))
+                .map(|x| Value::Number(Fraction::from(x)))
+                .collect(),
+            )
         } else {
             panic!("range function takes 1, 2 or 3 arguments")
         }
@@ -81,11 +96,26 @@ pub fn register_builtins(env: &mut Env) -> HashMap<(String, String), ValueType> 
 
     env.register_builtin("range".to_string(), |args: Vec<Value>| {
         if let [Value::Number(start), Value::Number(end)] = args.as_slice() {
-            Value::List(((*start.numer().unwrap() as i64)..(*end.numer().unwrap() as i64)).map(|x| Value::Number(Fraction::from(x))).collect())
+            Value::List(
+                ((*start.numer().unwrap() as i64)..(*end.numer().unwrap() as i64))
+                    .map(|x| Value::Number(Fraction::from(x)))
+                    .collect(),
+            )
         } else if let [Value::Number(end)] = args.as_slice() {
-            Value::List((0..(*end.numer().unwrap() as i64)).map(|x| Value::Number(Fraction::from(x))).collect())
-        } else if let [Value::Number(start), Value::Number(end), Value::Number(step)] = args.as_slice() {
-            Value::List(((*start.numer().unwrap() as i64..*end.numer().unwrap() as i64).step_by(*step.numer().unwrap() as usize)).map(|x| Value::Number(Fraction::from(x))).collect())
+            Value::List(
+                (0..(*end.numer().unwrap() as i64))
+                    .map(|x| Value::Number(Fraction::from(x)))
+                    .collect(),
+            )
+        } else if let [Value::Number(start), Value::Number(end), Value::Number(step)] =
+            args.as_slice()
+        {
+            Value::List(
+                ((*start.numer().unwrap() as i64..*end.numer().unwrap() as i64)
+                    .step_by(*step.numer().unwrap() as usize))
+                .map(|x| Value::Number(Fraction::from(x)))
+                .collect(),
+            )
         } else {
             panic!("range function takes 1, 2 or 3 arguments")
         }

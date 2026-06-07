@@ -1,8 +1,8 @@
 use crate::ast::ASTNode;
-use crate::token::{Token, TokenKind};
-use crate::parsers::Parser;
 use crate::environment::EnvVariableType;
 use crate::parsers::parse_error::ParseError;
+use crate::parsers::Parser;
+use crate::token::{Token, TokenKind};
 
 impl Parser {
     pub fn parse_lambda(&mut self) -> Result<ASTNode, ParseError> {
@@ -11,7 +11,10 @@ impl Parser {
 
         self.enter_scope("lambda".to_string());
         match self.get_current_token() {
-            Some(Token{kind: TokenKind::Pipe, ..}) => {
+            Some(Token {
+                kind: TokenKind::Pipe,
+                ..
+            }) => {
                 self.consume_token();
                 while let Some(token) = self.get_current_token() {
                     if token.kind == TokenKind::Pipe {
@@ -19,21 +22,27 @@ impl Parser {
                         break;
                     }
                     match self.get_current_token() {
-                        Some(Token{kind: TokenKind::Comma, ..}) => {
+                        Some(Token {
+                            kind: TokenKind::Comma,
+                            ..
+                        }) => {
                             self.consume_token();
                             continue;
-                        },
+                        }
                         _ => {}
                     };
                     if let TokenKind::Identifier(argument) = token.kind {
                         self.consume_token();
                         self.extract_token(TokenKind::Colon);
-                        let value_type =
-                            if let Some(Token{kind: TokenKind::Identifier(type_name), ..}) = self.get_current_token() {
-                                Some(self.string_to_value_type(type_name))
-                            } else {
-                                None
-                            };
+                        let value_type = if let Some(Token {
+                            kind: TokenKind::Identifier(type_name),
+                            ..
+                        }) = self.get_current_token()
+                        {
+                            Some(self.string_to_value_type(type_name))
+                        } else {
+                            None
+                        };
 
                         let (line, column) = self.get_line_column();
                         arguments.push(ASTNode::Variable {
@@ -53,15 +62,21 @@ impl Parser {
                     }
                 }
             }
-            Some(Token{kind: TokenKind::Identifier(argument), ..}) => {
+            Some(Token {
+                kind: TokenKind::Identifier(argument),
+                ..
+            }) => {
                 self.consume_token();
                 self.extract_token(TokenKind::Colon);
-                let value_type =
-                    if let Some(Token{kind: TokenKind::Identifier(type_name), ..}) = self.get_current_token() {
-                        Some(self.string_to_value_type(type_name))
-                    } else {
-                        None
-                    };
+                let value_type = if let Some(Token {
+                    kind: TokenKind::Identifier(type_name),
+                    ..
+                }) = self.get_current_token()
+                {
+                    Some(self.string_to_value_type(type_name))
+                } else {
+                    None
+                };
                 let (line, column) = self.get_line_column();
                 arguments.push(ASTNode::Variable {
                     name: argument.clone(),
@@ -77,7 +92,10 @@ impl Parser {
         self.extract_token(TokenKind::RRocket);
 
         let result = match self.get_current_token() {
-            Some(Token{kind: TokenKind::LBrace, ..}) => {
+            Some(Token {
+                kind: TokenKind::LBrace,
+                ..
+            }) => {
                 let statement = self.parse_block()?;
                 let (line, column) = self.get_line_column();
                 ASTNode::Lambda {
@@ -106,7 +124,9 @@ impl Parser {
         self.consume_token();
         let lambda = self.parse_lambda()?;
         let arguments = match left {
-            ASTNode::FunctionCallArgs{args: arguments, ..} => arguments,
+            ASTNode::FunctionCallArgs {
+                args: arguments, ..
+            } => arguments,
             _ => vec![left],
         };
         let (line, column) = self.get_line_column();
@@ -123,7 +143,10 @@ impl Parser {
         let next_token = self.get_current_token();
         self.pos -= 1;
         match next_token {
-            Some(Token{kind: TokenKind::BackSlash, ..}) => true,
+            Some(Token {
+                kind: TokenKind::BackSlash,
+                ..
+            }) => true,
             _ => false,
         }
     }

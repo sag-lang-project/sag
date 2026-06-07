@@ -1,24 +1,24 @@
-pub mod prefix_op;
-pub mod struct_node;
-pub mod function_node;
-pub mod comparison_op;
-pub mod if_node;
 pub mod assign_node;
-pub mod lambda_node;
-pub mod variable_node;
 pub mod binary_op;
+pub mod comparison_op;
 pub mod for_node;
+pub mod function_node;
+pub mod if_node;
 pub mod import_node;
-pub mod method_call_node;
-pub mod runtime_error;
+pub mod lambda_node;
 pub mod match_node;
+pub mod method_call_node;
+pub mod prefix_op;
+pub mod runtime_error;
+pub mod struct_node;
+pub mod variable_node;
 use fraction::Fraction;
 
-use crate::environment::Env;
 use crate::ast::ASTNode;
-use crate::value::Value;
-use crate::token::TokenKind;
+use crate::environment::Env;
 use crate::evals::runtime_error::RuntimeError;
+use crate::token::TokenKind;
+use crate::value::Value;
 
 pub fn evals(asts: Vec<ASTNode>, env: &mut Env) -> Result<Vec<Value>, RuntimeError> {
     let mut values = vec![];
@@ -37,8 +37,13 @@ pub fn eval(ast: ASTNode, env: &mut Env) -> Result<Value, RuntimeError> {
             column,
         } => import_node::import_node(module_name, symbols, line, column, env),
         ASTNode::Public { node, line, column } => import_node::public_node(node, line, column, env),
-        ASTNode::Literal{value, ..} => Ok(value.clone()),
-        ASTNode::PrefixOp { op, expr, line, column } => prefix_op::prefix_op(op, expr, line, column, env),
+        ASTNode::Literal { value, .. } => Ok(value.clone()),
+        ASTNode::PrefixOp {
+            op,
+            expr,
+            line,
+            column,
+        } => prefix_op::prefix_op(op, expr, line, column, env),
         ASTNode::Struct {
             name,
             fields,
@@ -50,15 +55,34 @@ pub fn eval(ast: ASTNode, env: &mut Env) -> Result<Value, RuntimeError> {
             methods,
             line,
             column,
+        } => struct_node::impl_node(base_struct, methods, line, column, env),
+        ASTNode::MethodCall {
+            method_name,
+            caller,
+            arguments,
+            builtin,
+            line,
+            column,
         } => {
-            struct_node::impl_node(base_struct, methods, line, column, env)
-        }
-        ASTNode::MethodCall { method_name, caller, arguments, builtin, line, column } => {
             if builtin {
-                method_call_node::builtin_method_call_node(method_name, caller, arguments, line, column, env)
+                method_call_node::builtin_method_call_node(
+                    method_name,
+                    caller,
+                    arguments,
+                    line,
+                    column,
+                    env,
+                )
             } else {
                 match caller {
-                    _ => method_call_node::method_call_node(method_name, caller, arguments, line, column, env)
+                    _ => method_call_node::method_call_node(
+                        method_name,
+                        caller,
+                        arguments,
+                        line,
+                        column,
+                        env,
+                    ),
                 }
             }
         }
@@ -67,15 +91,27 @@ pub fn eval(ast: ASTNode, env: &mut Env) -> Result<Value, RuntimeError> {
             fields,
             line,
             column,
-        } => {
-            struct_node::struct_instance_node(name, fields, line, column, env)
-        }
-        ASTNode::StructFieldAssign { instance, field_name: updated_field_name, value: updated_value_ast, line, column } => {
-            struct_node::struct_field_assign_node(instance, updated_field_name, updated_value_ast, line, column, env)
-        }
-        ASTNode::StructFieldAccess { instance, field_name, line, column } => {
-            struct_node::struct_field_access_node(instance, field_name, line, column, env)
-        }
+        } => struct_node::struct_instance_node(name, fields, line, column, env),
+        ASTNode::StructFieldAssign {
+            instance,
+            field_name: updated_field_name,
+            value: updated_value_ast,
+            line,
+            column,
+        } => struct_node::struct_field_assign_node(
+            instance,
+            updated_field_name,
+            updated_value_ast,
+            line,
+            column,
+            env,
+        ),
+        ASTNode::StructFieldAccess {
+            instance,
+            field_name,
+            line,
+            column,
+        } => struct_node::struct_field_access_node(instance, field_name, line, column, env),
         ASTNode::Function {
             name,
             arguments,
@@ -83,66 +119,91 @@ pub fn eval(ast: ASTNode, env: &mut Env) -> Result<Value, RuntimeError> {
             return_type,
             line,
             column,
-        } => {
-            function_node::function_node(name, arguments, body, return_type, line, column, env)
-        }
-        ASTNode::Lambda { arguments, body, .. } => Ok(Value::Lambda {
+        } => function_node::function_node(name, arguments, body, return_type, line, column, env),
+        ASTNode::Lambda {
+            arguments, body, ..
+        } => Ok(Value::Lambda {
             arguments,
             body: body.clone(),
             env: env.clone(),
         }),
-        ASTNode::Block{nodes: statements, line, column} => {
-            function_node::block_node(statements, line, column, env)
-        }
-        ASTNode::Return{expr: value, line: _, column: _} => {
-            Ok(Value::Return(Box::new(eval(*value, env)?)))
-        }
+        ASTNode::Block {
+            nodes: statements,
+            line,
+            column,
+        } => function_node::block_node(statements, line, column, env),
+        ASTNode::Return {
+            expr: value,
+            line: _,
+            column: _,
+        } => Ok(Value::Return(Box::new(eval(*value, env)?))),
         ASTNode::Break { line: _, column: _ } => Ok(Value::Break),
         ASTNode::Continue { line: _, column: _ } => Ok(Value::Continue),
-        ASTNode::Eq { left, right, line, column } => {
-            comparison_op::comparison_op_node(TokenKind::Eq, left, right, line, column, env)
-        }
-        ASTNode::Gte { left, right, line, column, } => {
-            comparison_op::comparison_op_node(TokenKind::Gte, left, right, line, column, env)
-        }
-        ASTNode::Gt { left, right, line, column, } => {
-            comparison_op::comparison_op_node(TokenKind::Gt, left, right, line, column, env)
-        }
-        ASTNode::Lte { left, right, line, column, } => {
-            comparison_op::comparison_op_node(TokenKind::Lte, left, right, line, column, env)
-        }
-        ASTNode::Lt { left, right, line, column, } => {
-            comparison_op::comparison_op_node(TokenKind::Lt, left, right, line, column, env)
-        }
+        ASTNode::Eq {
+            left,
+            right,
+            line,
+            column,
+        } => comparison_op::comparison_op_node(TokenKind::Eq, left, right, line, column, env),
+        ASTNode::Gte {
+            left,
+            right,
+            line,
+            column,
+        } => comparison_op::comparison_op_node(TokenKind::Gte, left, right, line, column, env),
+        ASTNode::Gt {
+            left,
+            right,
+            line,
+            column,
+        } => comparison_op::comparison_op_node(TokenKind::Gt, left, right, line, column, env),
+        ASTNode::Lte {
+            left,
+            right,
+            line,
+            column,
+        } => comparison_op::comparison_op_node(TokenKind::Lte, left, right, line, column, env),
+        ASTNode::Lt {
+            left,
+            right,
+            line,
+            column,
+        } => comparison_op::comparison_op_node(TokenKind::Lt, left, right, line, column, env),
         ASTNode::For {
             variable,
             iterable,
             body,
             line,
-            column
-        } => {
-            for_node::for_node(variable, iterable, body, line, column, env)
-        }
+            column,
+        } => for_node::for_node(variable, iterable, body, line, column, env),
         ASTNode::Match {
             expression,
             cases,
             line,
-            column
+            column,
+        } => match_node::match_node(expression, cases, line, column, env),
+        ASTNode::OptionSome {
+            value,
+            line: _,
+            column: _,
         } => {
-            match_node::match_node(expression, cases, line, column, env)
-        }
-        ASTNode::OptionSome { value, line: _, column: _ } => {
             let value = eval(*value, env)?;
             Ok(Value::Option(Some(value.into())))
         }
-        ASTNode::OptionNone { line: _, column: _ } => {
-            Ok(Value::Option(None))
-        }
-        ASTNode::ResultSuccess { value, line: _, column: _ } => {
+        ASTNode::OptionNone { line: _, column: _ } => Ok(Value::Option(None)),
+        ASTNode::ResultSuccess {
+            value,
+            line: _,
+            column: _,
+        } => {
             let value = eval(*value, env)?;
             Ok(Value::Result(Ok(value.into())))
         }
-        ASTNode::ResultFailure { value, line: _, column: _ } => {
+        ASTNode::ResultFailure {
+            value,
+            line: _,
+            column: _,
+        } => {
             let value = eval(*value, env)?;
             Ok(Value::Result(Err(value.into())))
         }
@@ -153,10 +214,8 @@ pub fn eval(ast: ASTNode, env: &mut Env) -> Result<Value, RuntimeError> {
             else_,
             value_type: _,
             line,
-            column
-        } => {
-            if_node::if_node(condition, is_statement, then, else_, line, column, env)
-        }
+            column,
+        } => if_node::if_node(condition, is_statement, then, else_, line, column, env),
         ASTNode::Assign {
             name,
             value,
@@ -164,27 +223,42 @@ pub fn eval(ast: ASTNode, env: &mut Env) -> Result<Value, RuntimeError> {
             value_type,
             is_new,
             line,
-            column
-        } => {
-            assign_node::assign_node(name, value, value_type, variable_type, is_new, line, column, env)
-        }
-        ASTNode::LambdaCall { lambda, arguments, line, column } => {
-            lambda_node::lambda_call_node(lambda, arguments, line, column, env)
-        }
-        ASTNode::FunctionCall { name, arguments, line, column } => {
-            function_node::function_call_node(name, arguments, line, column, env)
-        }
+            column,
+        } => assign_node::assign_node(
+            name,
+            value,
+            value_type,
+            variable_type,
+            is_new,
+            line,
+            column,
+            env,
+        ),
+        ASTNode::LambdaCall {
+            lambda,
+            arguments,
+            line,
+            column,
+        } => lambda_node::lambda_call_node(lambda, arguments, line, column, env),
+        ASTNode::FunctionCall {
+            name,
+            arguments,
+            line,
+            column,
+        } => function_node::function_call_node(name, arguments, line, column, env),
         ASTNode::Variable {
             name,
             value_type,
             line,
             column,
-        } => {
-            variable_node::variable_node(name, value_type, line, column, env)
-        }
-        ASTNode::BinaryOp { left, op, right, line, column } => {
-            binary_op::binary_op(op, left, right, line, column, env)
-        }
+        } => variable_node::variable_node(name, value_type, line, column, env),
+        ASTNode::BinaryOp {
+            left,
+            op,
+            right,
+            line,
+            column,
+        } => binary_op::binary_op(op, left, right, line, column, env),
         ASTNode::ListIndexAccess {
             list,
             index,
@@ -207,9 +281,13 @@ pub fn eval(ast: ASTNode, env: &mut Env) -> Result<Value, RuntimeError> {
                     Err(RuntimeError::new("Index must be a number", line, column))
                 }
             } else {
-                Err(RuntimeError::new("Expected a list for index access", line, column))
+                Err(RuntimeError::new(
+                    "Expected a list for index access",
+                    line,
+                    column,
+                ))
             }
-        },
+        }
         ASTNode::DictKeyAccess {
             dict,
             key,
@@ -220,15 +298,23 @@ pub fn eval(ast: ASTNode, env: &mut Env) -> Result<Value, RuntimeError> {
                 if let Value::String(key_value) = eval(*key, env)? {
                     match dict_map.get(&key_value) {
                         Some(value) => Ok(value.clone()),
-                        None => Err(RuntimeError::new("Key not found in dictionary", line, column)),
+                        None => Err(RuntimeError::new(
+                            "Key not found in dictionary",
+                            line,
+                            column,
+                        )),
                     }
                 } else {
                     Err(RuntimeError::new("Key must be a string", line, column))
                 }
             } else {
-                Err(RuntimeError::new("Expected a dictionary for key access", line, column))
+                Err(RuntimeError::new(
+                    "Expected a dictionary for key access",
+                    line,
+                    column,
+                ))
             }
-        },
+        }
         ASTNode::DictAssign {
             dict,
             key,
@@ -239,16 +325,34 @@ pub fn eval(ast: ASTNode, env: &mut Env) -> Result<Value, RuntimeError> {
             // 辞書の変数名を取得
             let dict_name = match dict.as_ref() {
                 ASTNode::Variable { name, .. } => name.clone(),
-                _ => return Err(RuntimeError::new("Dictionary assignment target must be a variable", line, column)),
+                _ => {
+                    return Err(RuntimeError::new(
+                        "Dictionary assignment target must be a variable",
+                        line,
+                        column,
+                    ))
+                }
             };
 
             // 現在の辞書を取得
             let current_dict = match env.get(&dict_name, None) {
                 Some(var_info) => match &var_info.value {
                     Value::Dict(dict_map) => dict_map.clone(),
-                    _ => return Err(RuntimeError::new("Variable is not a dictionary", line, column)),
+                    _ => {
+                        return Err(RuntimeError::new(
+                            "Variable is not a dictionary",
+                            line,
+                            column,
+                        ))
+                    }
                 },
-                None => return Err(RuntimeError::new("Dictionary variable not found", line, column)),
+                None => {
+                    return Err(RuntimeError::new(
+                        "Dictionary variable not found",
+                        line,
+                        column,
+                    ))
+                }
             };
 
             // キーと値を評価
@@ -274,9 +378,13 @@ pub fn eval(ast: ASTNode, env: &mut Env) -> Result<Value, RuntimeError> {
 
                 Ok(new_value)
             } else {
-                Err(RuntimeError::new("Dictionary key must be a string", line, column))
+                Err(RuntimeError::new(
+                    "Dictionary key must be a string",
+                    line,
+                    column,
+                ))
             }
-        },
+        }
         ASTNode::ListIndexAssign {
             list,
             index,
@@ -287,7 +395,13 @@ pub fn eval(ast: ASTNode, env: &mut Env) -> Result<Value, RuntimeError> {
             // リストの変数名を取得
             let list_name = match list.as_ref() {
                 ASTNode::Variable { name, .. } => name.clone(),
-                _ => return Err(RuntimeError::new("List assignment target must be a variable", line, column)),
+                _ => {
+                    return Err(RuntimeError::new(
+                        "List assignment target must be a variable",
+                        line,
+                        column,
+                    ))
+                }
             };
 
             // 現在のリストを取得
@@ -332,20 +446,28 @@ pub fn eval(ast: ASTNode, env: &mut Env) -> Result<Value, RuntimeError> {
                     Err(RuntimeError::new("List index out of bounds", line, column))
                 }
             } else {
-                Err(RuntimeError::new("List index must be a number", line, column))
+                Err(RuntimeError::new(
+                    "List index must be a number",
+                    line,
+                    column,
+                ))
             }
-        },
-        ASTNode::CommentBlock{..} => Ok(Value::Void),
-        _ => Err(RuntimeError::new(format!("Unsupported ast node: {:?}", ast).as_str(), 0, 0))
+        }
+        ASTNode::CommentBlock { .. } => Ok(Value::Void),
+        _ => Err(RuntimeError::new(
+            format!("Unsupported ast node: {:?}", ast).as_str(),
+            0,
+            0,
+        )),
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::tokenizer::tokenize;
-    use crate::parsers::Parser;
     use crate::builtin::register_builtins;
+    use crate::parsers::Parser;
+    use crate::tokenizer::tokenize;
     use fraction::Fraction;
 
     #[test]
@@ -354,7 +476,8 @@ mod tests {
         let input = r#"
         val mut x = 5
         val mut y = x + 5
-        "#.to_string();
+        "#
+        .to_string();
         let tokens = tokenize(&input);
         let mut parser = Parser::new(tokens, register_builtins(&mut env));
         let ast = parser.parse_lines().unwrap();
@@ -367,7 +490,8 @@ mod tests {
         let input = r#"
         val mut x = 10
         x = 20
-        "#.to_string();
+        "#
+        .to_string();
         let tokens = tokenize(&input);
         let mut parser = Parser::new(tokens, register_builtins(&mut env));
         let ast = parser.parse_lines().unwrap();
@@ -379,13 +503,17 @@ mod tests {
         let input = r#"
         val x = 200
         x = 300
-        "#.to_string();
+        "#
+        .to_string();
         let mut env = Env::new();
         let tokens = tokenize(&input);
         let mut parser = Parser::new(tokens, register_builtins(&mut env));
         let ast = parser.parse_lines();
         assert!(ast.is_err());
-        assert_eq!(ast.err().unwrap().message, "It is an immutable variable and cannot be reassigned: \"x\"");
+        assert_eq!(
+            ast.err().unwrap().message,
+            "It is an immutable variable and cannot be reassigned: \"x\""
+        );
     }
 
     #[test]
@@ -393,13 +521,13 @@ mod tests {
         let mut env = Env::new();
         let input = r#"
         +5
-        "#.to_string();
+        "#
+        .to_string();
         let tokens = tokenize(&input);
         let mut parser = Parser::new(tokens, register_builtins(&mut env));
         let ast = parser.parse();
         assert!(ast.is_err());
         assert_eq!(ast.err().unwrap().message, "unexpected token: Plus");
-
     }
 
     #[test]
@@ -407,7 +535,8 @@ mod tests {
         let mut env = Env::new();
         let input = r#"
         5 * "hello"
-        "#.to_string();
+        "#
+        .to_string();
         let tokens = tokenize(&input);
         let mut parser = Parser::new(tokens, register_builtins(&mut env));
         let ast = parser.parse_lines();
@@ -420,18 +549,22 @@ mod tests {
         let input = r#"
         val mut x = [1, 2, 3]
         x.push(4)
-        "#.to_string();
+        "#
+        .to_string();
         let mut env = Env::new();
         let tokens = tokenize(&input);
         let mut parser = Parser::new(tokens, register_builtins(&mut env));
         let ast = parser.parse_lines().unwrap();
         let results = evals(ast, &mut env).unwrap();
-        assert_eq!(*results.last().unwrap(), Value::List(vec![
+        assert_eq!(
+            *results.last().unwrap(),
+            Value::List(vec![
                 Value::Number(Fraction::from(1)),
                 Value::Number(Fraction::from(2)),
                 Value::Number(Fraction::from(3)),
                 Value::Number(Fraction::from(4)),
-        ]));
+            ])
+        );
     }
 
     #[test]
@@ -440,16 +573,24 @@ mod tests {
         val mut x = {: "a" => 1, "b" => 2 :}
         x
         x["b"]
-        "#.to_string();
+        "#
+        .to_string();
         let mut env = Env::new();
         let tokens = tokenize(&input);
         let mut parser = Parser::new(tokens, register_builtins(&mut env));
         let ast = parser.parse_lines().unwrap();
         let results = evals(ast, &mut env).unwrap();
-        assert_eq!(results[1], Value::Dict([
-            ("a".to_string(), Value::Number(Fraction::from(1))),
-            ("b".to_string(), Value::Number(Fraction::from(2))),
-        ].into_iter().collect()));
+        assert_eq!(
+            results[1],
+            Value::Dict(
+                [
+                    ("a".to_string(), Value::Number(Fraction::from(1))),
+                    ("b".to_string(), Value::Number(Fraction::from(2))),
+                ]
+                .into_iter()
+                .collect()
+            )
+        );
         assert_eq!(results[2], Value::Number(Fraction::from(2)));
     }
 
@@ -461,14 +602,18 @@ mod tests {
             return x
         }
         foo(1, 2)
-        "#.to_string();
+        "#
+        .to_string();
         let mut env = Env::new();
         let tokens = tokenize(&input);
         let mut parser = Parser::new(tokens, register_builtins(&mut env));
         let ast = parser.parse_lines().unwrap();
         let results = evals(ast, &mut env);
         assert!(results.is_err());
-        assert_eq!(results.err().unwrap().message, "Function foo does not match arguments length");
+        assert_eq!(
+            results.err().unwrap().message,
+            "Function foo does not match arguments length"
+        );
     }
 
     #[test]
@@ -479,7 +624,8 @@ mod tests {
             return a + local_var
         }
         add_and_return(5)
-        "#.to_string();
+        "#
+        .to_string();
         let mut env = Env::new();
         let tokens = tokenize(&input);
         let mut parser = Parser::new(tokens, register_builtins(&mut env));
@@ -509,40 +655,57 @@ mod tests {
             return 1
         }
         f1(2, 0)
-        "#.to_string();
+        "#
+        .to_string();
         let mut env = Env::new();
         let tokens = tokenize(&input);
         let mut parser = Parser::new(tokens, register_builtins(&mut env));
         let ast = parser.parse_lines().unwrap();
         let results = evals(ast, &mut env).unwrap();
         assert_eq!(*results.last().unwrap(), Value::Number(Fraction::from(6))); // 2 + 0 + z(4) = 6
-        // f2 is defined in the same scope, so it should be accessible
-        let result = eval(ASTNode::FunctionCall {
-            name: "f2".to_string(),
-            arguments: Box::new(ASTNode::FunctionCallArgs {
-                args: vec![
-                    ASTNode::Literal { value: Value::Number(Fraction::from(2)), line: 0, column: 0 },
-                    ASTNode::Literal { value: Value::Number(Fraction::from(0)), line: 0, column: 0 }
-                ],
+                                                                                // f2 is defined in the same scope, so it should be accessible
+        let result = eval(
+            ASTNode::FunctionCall {
+                name: "f2".to_string(),
+                arguments: Box::new(ASTNode::FunctionCallArgs {
+                    args: vec![
+                        ASTNode::Literal {
+                            value: Value::Number(Fraction::from(2)),
+                            line: 0,
+                            column: 0,
+                        },
+                        ASTNode::Literal {
+                            value: Value::Number(Fraction::from(0)),
+                            line: 0,
+                            column: 0,
+                        },
+                    ],
+                    line: 0,
+                    column: 0,
+                }),
                 line: 0,
-                column: 0
-            }),
-            line: 0,
-            column: 0
-        }, &mut env).unwrap();
+                column: 0,
+            },
+            &mut env,
+        )
+        .unwrap();
         assert_eq!(result, Value::Number(Fraction::from(6))); // 2 + 0 + z(4) = 6
 
         // Call f3 directly
-        let result = eval(ASTNode::FunctionCall {
-            name: "f3".to_string(),
-            arguments: Box::new(ASTNode::FunctionCallArgs {
-                args: vec![],
+        let result = eval(
+            ASTNode::FunctionCall {
+                name: "f3".to_string(),
+                arguments: Box::new(ASTNode::FunctionCallArgs {
+                    args: vec![],
+                    line: 0,
+                    column: 0,
+                }),
                 line: 0,
-                column: 0
-            }),
-            line: 0,
-            column: 0
-        }, &mut env).unwrap();
+                column: 0,
+            },
+            &mut env,
+        )
+        .unwrap();
         assert_eq!(result, Value::Number(Fraction::from(1)));
     }
 
@@ -557,7 +720,8 @@ mod tests {
             return x + y + z
         }
         |2, 0| -> f1
-        "#.to_string();
+        "#
+        .to_string();
         let mut env = Env::new();
         let tokens = tokenize(&input);
         let mut parser = Parser::new(tokens, register_builtins(&mut env));
@@ -573,13 +737,17 @@ mod tests {
         x = Some(5)
         val mut y = None
         x
-        "#.to_string();
+        "#
+        .to_string();
         let mut env = Env::new();
         let tokens = tokenize(&input);
         let mut parser = Parser::new(tokens, register_builtins(&mut env));
         let ast = parser.parse_lines().unwrap();
         let results = evals(ast, &mut env).unwrap();
-        assert_eq!(*results.last().unwrap(), Value::Option(Some(Box::new(Value::Number(Fraction::from(5))))));
+        assert_eq!(
+            *results.last().unwrap(),
+            Value::Option(Some(Box::new(Value::Number(Fraction::from(5)))))
+        );
     }
 
     #[test]
@@ -589,23 +757,33 @@ mod tests {
         x = Fail("hello")
         val mut y = Suc(5)
         x
-        "#.to_string();
+        "#
+        .to_string();
         let mut env = Env::new();
         let tokens = tokenize(&input);
         let mut parser = Parser::new(tokens, register_builtins(&mut env));
         let ast = parser.parse_lines().unwrap();
         let results = evals(ast, &mut env).unwrap();
-        assert_eq!(*results.last().unwrap(), Value::Result(Err(Box::new(Value::String("hello".to_string())))));
+        assert_eq!(
+            *results.last().unwrap(),
+            Value::Result(Err(Box::new(Value::String("hello".to_string()))))
+        );
         let input = r#"
         val mut x:Result<Option<number>, string> = Suc(Some(5))
         x
-        "#.to_string();
+        "#
+        .to_string();
         let mut env = Env::new();
         let tokens = tokenize(&input);
         let mut parser = Parser::new(tokens, register_builtins(&mut env));
         let ast = parser.parse_lines().unwrap();
         let results = evals(ast, &mut env).unwrap();
-        assert_eq!(*results.last().unwrap(), Value::Result(Ok(Box::new(Value::Option(Some(Box::new(Value::Number(Fraction::from(5)))))))));
+        assert_eq!(
+            *results.last().unwrap(),
+            Value::Result(Ok(Box::new(Value::Option(Some(Box::new(Value::Number(
+                Fraction::from(5)
+            )))))))
+        );
     }
 
     #[test]
@@ -625,7 +803,8 @@ mod tests {
             }
             
             complex_test()
-        "#.to_string();
+        "#
+        .to_string();
         let mut env = Env::new();
         let tokens = tokenize(&input);
         let mut parser = Parser::new(tokens, register_builtins(&mut env));
@@ -638,40 +817,80 @@ mod tests {
     fn test_comparison_operations() {
         let mut env = Env::new();
         let ast = ASTNode::Eq {
-            left: Box::new(ASTNode::Literal{value: Value::Number(Fraction::from(1)), line: 0, column: 0}),
-            right: Box::new(ASTNode::Literal{value: Value::Number(Fraction::from(1)), line: 0, column: 0}),
+            left: Box::new(ASTNode::Literal {
+                value: Value::Number(Fraction::from(1)),
+                line: 0,
+                column: 0,
+            }),
+            right: Box::new(ASTNode::Literal {
+                value: Value::Number(Fraction::from(1)),
+                line: 0,
+                column: 0,
+            }),
             line: 0,
             column: 0,
         };
         assert_eq!(Value::Bool(true), eval(ast, &mut env).unwrap());
 
         let ast = ASTNode::Gte {
-            left: Box::new(ASTNode::Literal{value: Value::Number(Fraction::from(1)), line: 0, column: 0}),
-            right: Box::new(ASTNode::Literal{value: Value::Number(Fraction::from(1)), line: 0, column: 0}),
+            left: Box::new(ASTNode::Literal {
+                value: Value::Number(Fraction::from(1)),
+                line: 0,
+                column: 0,
+            }),
+            right: Box::new(ASTNode::Literal {
+                value: Value::Number(Fraction::from(1)),
+                line: 0,
+                column: 0,
+            }),
             line: 0,
             column: 0,
         };
         assert_eq!(Value::Bool(true), eval(ast, &mut env).unwrap());
 
         let ast = ASTNode::Gt {
-            left: Box::new(ASTNode::Literal{value: Value::Number(Fraction::from(1)), line: 0, column: 0}),
-            right: Box::new(ASTNode::Literal{value: Value::Number(Fraction::from(1)), line: 0, column: 0}),
+            left: Box::new(ASTNode::Literal {
+                value: Value::Number(Fraction::from(1)),
+                line: 0,
+                column: 0,
+            }),
+            right: Box::new(ASTNode::Literal {
+                value: Value::Number(Fraction::from(1)),
+                line: 0,
+                column: 0,
+            }),
             line: 0,
             column: 0,
         };
         assert_eq!(Value::Bool(false), eval(ast, &mut env).unwrap());
 
         let ast = ASTNode::Lte {
-            left: Box::new(ASTNode::Literal{value: Value::Number(Fraction::from(1)), line: 0, column: 0}),
-            right: Box::new(ASTNode::Literal{value: Value::Number(Fraction::from(1)), line: 0, column: 0}),
+            left: Box::new(ASTNode::Literal {
+                value: Value::Number(Fraction::from(1)),
+                line: 0,
+                column: 0,
+            }),
+            right: Box::new(ASTNode::Literal {
+                value: Value::Number(Fraction::from(1)),
+                line: 0,
+                column: 0,
+            }),
             line: 0,
             column: 0,
         };
         assert_eq!(Value::Bool(true), eval(ast, &mut env).unwrap());
 
         let ast = ASTNode::Lt {
-            left: Box::new(ASTNode::Literal{value: Value::Number(Fraction::from(1)), line: 0, column: 0}),
-            right: Box::new(ASTNode::Literal{value: Value::Number(Fraction::from(1)), line: 0, column: 0}),
+            left: Box::new(ASTNode::Literal {
+                value: Value::Number(Fraction::from(1)),
+                line: 0,
+                column: 0,
+            }),
+            right: Box::new(ASTNode::Literal {
+                value: Value::Number(Fraction::from(1)),
+                line: 0,
+                column: 0,
+            }),
             line: 0,
             column: 0,
         };

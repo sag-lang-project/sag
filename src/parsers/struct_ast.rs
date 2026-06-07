@@ -1,15 +1,18 @@
 use crate::ast::ASTNode;
-use crate::token::{Token, TokenKind};
-use crate::parsers::Parser;
 use crate::environment::ValueType;
-use std::collections::HashMap;
 use crate::parsers::parse_error::ParseError;
+use crate::parsers::Parser;
+use crate::token::{Token, TokenKind};
+use std::collections::HashMap;
 
 impl Parser {
     pub fn parse_struct(&mut self) -> Result<ASTNode, ParseError> {
         self.consume_token();
         let name = match self.get_current_token() {
-            Some(Token{kind: TokenKind::Identifier(name), ..}) => name,
+            Some(Token {
+                kind: TokenKind::Identifier(name),
+                ..
+            }) => name,
             _ => panic!("unexpected token"),
         };
         self.enter_struct(name.clone());
@@ -39,28 +42,43 @@ impl Parser {
                 self.consume_token();
                 continue;
             }
-    
-            if let Token{kind: TokenKind::Identifier(name), ..} = token {
+
+            if let Token {
+                kind: TokenKind::Identifier(name),
+                ..
+            } = token
+            {
                 self.consume_token();
                 self.extract_token(TokenKind::Colon);
                 let value_type = match self.get_current_token() {
-                    Some(Token{kind: TokenKind::Identifier(type_name), ..}) => self.string_to_value_type(type_name),
+                    Some(Token {
+                        kind: TokenKind::Identifier(type_name),
+                        ..
+                    }) => self.string_to_value_type(type_name),
                     _ => panic!("undefined type"),
                 };
                 let (line, column) = self.get_line_column();
-                fields.insert(name, ASTNode::StructField {
-                    value_type,
-                    is_public: field_is_public,
-                    line,
-                    column
-                });
+                fields.insert(
+                    name,
+                    ASTNode::StructField {
+                        value_type,
+                        is_public: field_is_public,
+                        line,
+                        column,
+                    },
+                );
                 self.consume_token();
                 field_is_public = false;
                 continue;
             }
         }
         let (line, column) = self.get_line_column();
-        let result = ASTNode::Struct { name, fields, line, column };
+        let result = ASTNode::Struct {
+            name,
+            fields,
+            line,
+            column,
+        };
         let scope = self.get_current_scope().clone();
         self.register_struct(scope, result.clone());
         self.leave_struct();
@@ -70,7 +88,10 @@ impl Parser {
     pub fn parse_struct_instance_access(&mut self, name: String) -> Result<ASTNode, ParseError> {
         self.consume_token();
         let field_name = match self.get_current_token() {
-            Some(Token{kind: TokenKind::Identifier(name), ..}) => name,
+            Some(Token {
+                kind: TokenKind::Identifier(name),
+                ..
+            }) => name,
             _ => panic!("unexpected token"),
         };
         self.consume_token();
@@ -90,7 +111,7 @@ impl Parser {
                     name: "self".to_string(),
                     value_type: Some(struct_type.clone()),
                     line,
-                    column
+                    column,
                 }),
                 field_name,
                 line,
@@ -100,19 +121,26 @@ impl Parser {
 
         let (line, column) = self.get_line_column();
         match self.find_variables(scope.clone(), name.clone()) {
-            Some((ValueType::StructInstance { name: instance_name, ref fields }, _)) => {
-                Ok(ASTNode::StructFieldAccess {
-                    instance: Box::new(ASTNode::Variable {
-                        name: name.clone(),
-                        value_type: Some(ValueType::StructInstance {name: instance_name, fields: fields.clone()}),
-                        line,
-                        column
+            Some((
+                ValueType::StructInstance {
+                    name: instance_name,
+                    ref fields,
+                },
+                _,
+            )) => Ok(ASTNode::StructFieldAccess {
+                instance: Box::new(ASTNode::Variable {
+                    name: name.clone(),
+                    value_type: Some(ValueType::StructInstance {
+                        name: instance_name,
+                        fields: fields.clone(),
                     }),
-                    field_name,
                     line,
                     column,
-                })
-            }
+                }),
+                field_name,
+                line,
+                column,
+            }),
             _ => panic!("undefined struct: {:?}", name),
         }
     }
@@ -121,15 +149,21 @@ impl Parser {
         self.consume_token();
         let scope = self.get_current_scope().clone();
         let struct_name = match self.get_current_token() {
-            Some(Token{kind: TokenKind::Identifier(name), ..}) => name,
+            Some(Token {
+                kind: TokenKind::Identifier(name),
+                ..
+            }) => name,
             _ => panic!("unexpected token"),
         };
 
         self.enter_struct(struct_name.clone());
 
-        let base_struct = self.get_struct(scope.clone(),struct_name.to_string());
+        let base_struct = self.get_struct(scope.clone(), struct_name.to_string());
         if base_struct.is_none() {
-            return Err(ParseError::new(format!("undefined struct: {:?}", struct_name).as_str(), &self.get_current_token().unwrap()));
+            return Err(ParseError::new(
+                format!("undefined struct: {:?}", struct_name).as_str(),
+                &self.get_current_token().unwrap(),
+            ));
         }
         self.current_struct = Some(struct_name.clone());
         self.consume_token();
@@ -162,18 +196,17 @@ impl Parser {
             base_struct: Box::new(base_struct.unwrap()),
             methods,
             line,
-            column
+            column,
         })
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::tokenizer::tokenize;
-    use crate::environment::Env;
     use crate::builtin::register_builtins;
+    use crate::environment::Env;
+    use crate::tokenizer::tokenize;
 
     #[test]
     fn test_parse_struct() {

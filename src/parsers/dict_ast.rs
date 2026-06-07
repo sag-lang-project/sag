@@ -1,8 +1,8 @@
 use crate::ast::ASTNode;
+use crate::parsers::parse_error::ParseError;
 use crate::parsers::Parser;
 use crate::token::TokenKind;
 use crate::value::Value;
-use crate::parsers::parse_error::ParseError;
 use std::collections::HashMap;
 
 impl Parser {
@@ -50,8 +50,8 @@ impl Parser {
             self.consume_token();
         }
         let (line, column) = self.get_line_column();
-        Ok(ASTNode::Literal{
-            value:Value::Dict(dict),
+        Ok(ASTNode::Literal {
+            value: Value::Dict(dict),
             line,
             column,
         })
@@ -61,9 +61,9 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::tokenizer::tokenize;
-    use crate::environment::Env;
     use crate::builtin::register_builtins;
+    use crate::environment::Env;
+    use crate::tokenizer::tokenize;
     use fraction::Fraction;
 
     #[test]
@@ -84,12 +84,16 @@ mod tests {
         let mut parser = Parser::new(tokens, builtin);
         let ast = parser.parse_lines();
         assert!(ast.is_ok());
-        
+
         // ASTの内容を検証
         let ast_nodes = ast.unwrap();
         if let Some(assign_node) = ast_nodes.first() {
             if let ASTNode::Assign { value, .. } = assign_node {
-                if let ASTNode::Literal { value: Value::Dict(dict), .. } = value.as_ref() {
+                if let ASTNode::Literal {
+                    value: Value::Dict(dict),
+                    ..
+                } = value.as_ref()
+                {
                     assert_eq!(dict.len(), 1);
                     assert_eq!(dict.get("key"), Some(&Value::Number(Fraction::from(42))));
                 } else {
@@ -111,12 +115,16 @@ mod tests {
         let mut parser = Parser::new(tokens, builtin);
         let ast = parser.parse_lines();
         assert!(ast.is_ok());
-        
+
         // ASTの内容を検証
         let ast_nodes = ast.unwrap();
         if let Some(assign_node) = ast_nodes.first() {
             if let ASTNode::Assign { value, .. } = assign_node {
-                if let ASTNode::Literal { value: Value::Dict(dict), .. } = value.as_ref() {
+                if let ASTNode::Literal {
+                    value: Value::Dict(dict),
+                    ..
+                } = value.as_ref()
+                {
                     assert_eq!(dict.len(), 1);
                     assert_eq!(dict.get("name"), Some(&Value::String("Alice".to_string())));
                 } else {
@@ -138,12 +146,16 @@ mod tests {
         let mut parser = Parser::new(tokens, builtin);
         let ast = parser.parse_lines();
         assert!(ast.is_ok());
-        
+
         // ASTの内容を検証
         let ast_nodes = ast.unwrap();
         if let Some(assign_node) = ast_nodes.first() {
             if let ASTNode::Assign { value, .. } = assign_node {
-                if let ASTNode::Literal { value: Value::Dict(dict), .. } = value.as_ref() {
+                if let ASTNode::Literal {
+                    value: Value::Dict(dict),
+                    ..
+                } = value.as_ref()
+                {
                     assert_eq!(dict.len(), 3);
                     assert_eq!(dict.get("a"), Some(&Value::Number(Fraction::from(5))));
                     assert_eq!(dict.get("b"), Some(&Value::String("hello".to_string())));
@@ -180,12 +192,16 @@ v["a"]
         let mut parser = Parser::new(tokens, builtin);
         let ast = parser.parse_lines();
         assert!(ast.is_ok());
-        
+
         // ASTの内容を検証
         let ast_nodes = ast.unwrap();
         if let Some(assign_node) = ast_nodes.first() {
             if let ASTNode::Assign { value, .. } = assign_node {
-                if let ASTNode::Literal { value: Value::Dict(dict), .. } = value.as_ref() {
+                if let ASTNode::Literal {
+                    value: Value::Dict(dict),
+                    ..
+                } = value.as_ref()
+                {
                     assert_eq!(dict.len(), 2);
                     assert_eq!(dict.get("pi"), Some(&Value::Number(Fraction::from(3.14))));
                     assert_eq!(dict.get("e"), Some(&Value::Number(Fraction::from(2.71))));
@@ -208,12 +224,16 @@ v["a"]
         let mut parser = Parser::new(tokens, builtin);
         let ast = parser.parse_lines();
         assert!(ast.is_ok());
-        
+
         // ASTの内容を検証
         let ast_nodes = ast.unwrap();
         if let Some(assign_node) = ast_nodes.first() {
             if let ASTNode::Assign { value, .. } = assign_node {
-                if let ASTNode::Literal { value: Value::Dict(dict), .. } = value.as_ref() {
+                if let ASTNode::Literal {
+                    value: Value::Dict(dict),
+                    ..
+                } = value.as_ref()
+                {
                     assert_eq!(dict.len(), 1);
                     assert_eq!(dict.get("single"), Some(&Value::Number(Fraction::from(1))));
                 } else {
@@ -235,16 +255,23 @@ v["a"]
         let mut parser = Parser::new(tokens, builtin);
         let ast = parser.parse_lines();
         assert!(ast.is_ok());
-        
+
         // ASTの内容を検証
         let ast_nodes = ast.unwrap();
         if let Some(assign_node) = ast_nodes.first() {
             if let ASTNode::Assign { value, .. } = assign_node {
-                if let ASTNode::Literal { value: Value::Dict(dict), .. } = value.as_ref() {
+                if let ASTNode::Literal {
+                    value: Value::Dict(dict),
+                    ..
+                } = value.as_ref()
+                {
                     assert_eq!(dict.len(), 3);
                     assert_eq!(dict.get("number"), Some(&Value::Number(Fraction::from(42))));
                     assert_eq!(dict.get("text"), Some(&Value::String("hello".to_string())));
-                    assert_eq!(dict.get("decimal"), Some(&Value::Number(Fraction::from(3.14))));
+                    assert_eq!(
+                        dict.get("decimal"),
+                        Some(&Value::Number(Fraction::from(3.14)))
+                    );
                 } else {
                     panic!("Expected Dict literal");
                 }
@@ -264,12 +291,16 @@ v["a"]
         let mut parser = Parser::new(tokens, builtin);
         let ast = parser.parse_lines();
         assert!(ast.is_ok());
-        
+
         // ASTの内容を検証
         let ast_nodes = ast.unwrap();
         if let Some(assign_node) = ast_nodes.first() {
             if let ASTNode::Assign { value, .. } = assign_node {
-                if let ASTNode::Literal { value: Value::Dict(dict), .. } = value.as_ref() {
+                if let ASTNode::Literal {
+                    value: Value::Dict(dict),
+                    ..
+                } = value.as_ref()
+                {
                     assert_eq!(dict.len(), 2);
                     assert_eq!(dict.get("key1"), Some(&Value::Number(Fraction::from(1))));
                     assert_eq!(dict.get("key2"), Some(&Value::String("value".to_string())));

@@ -1,8 +1,8 @@
 use crate::ast::ASTNode;
+use crate::parsers::parse_error::ParseError;
 use crate::parsers::Parser;
 use crate::token::TokenKind;
 use crate::value::Value;
-use crate::parsers::parse_error::ParseError;
 
 impl Parser {
     pub fn parse_list(&mut self) -> Result<ASTNode, ParseError> {
@@ -22,15 +22,23 @@ impl Parser {
                 TokenKind::String(value) => Value::String(value),
                 _ => panic!("unexpected token: {:?}", token),
             };
-            list.push(ASTNode::Literal{value, line: token.line, column: token.column});
+            list.push(ASTNode::Literal {
+                value,
+                line: token.line,
+                column: token.column,
+            });
             self.consume_token();
         }
         let (line, column) = self.get_line_column();
-        Ok(ASTNode::Literal{
-            value:Value::List(list.iter().map(|x| match x {
-                ASTNode::Literal{value, ..} => value.clone(),
-                _ => panic!("unexpected node"),
-            }).collect()),
+        Ok(ASTNode::Literal {
+            value: Value::List(
+                list.iter()
+                    .map(|x| match x {
+                        ASTNode::Literal { value, .. } => value.clone(),
+                        _ => panic!("unexpected node"),
+                    })
+                    .collect(),
+            ),
             line,
             column,
         })

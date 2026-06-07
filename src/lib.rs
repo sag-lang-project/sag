@@ -1,11 +1,21 @@
+mod ast;
 mod builtin;
+mod compiler;
 mod environment;
-mod tokenizer;
-mod wasm;
 mod evals;
 mod parsers;
-mod ast;
-mod value;
+mod rc_builtins;
+mod rc_env;
+mod rc_evals;
+mod rc_value;
 mod token;
+mod tokenizer;
+mod value;
+mod wasm;
 
+pub use compiler::{compile_file, run_compiled_file};
+pub use rc_builtins::register_rc_builtins;
+pub use rc_env::RcEnv;
+pub use rc_evals::{rc_eval, rc_evals};
+pub use rc_value::RcValue;
 pub use wasm::evaluate;

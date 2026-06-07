@@ -2,8 +2,8 @@ use crate::builtin::register_builtins;
 use crate::environment::Env;
 use crate::evals::evals;
 use crate::parsers::Parser;
-use crate::value::Value;
 use crate::tokenizer::tokenize;
+use crate::value::Value;
 use std::cell::RefCell;
 use wasm_bindgen::prelude::*;
 
@@ -22,12 +22,20 @@ pub fn evaluate(input: &str) -> String {
     let ast_nodes = parser.parse_lines();
     if let Err(ref e) = ast_nodes {
         let error_message = e.message_with_source(&input);
-        return format!("__ConsoleOutput__{}__Result__{}", error_message, Value::Void);
+        return format!(
+            "__ConsoleOutput__{}__Result__{}",
+            error_message,
+            Value::Void
+        );
     }
     let result = evals(ast_nodes.unwrap(), &mut env);
     if let Err(ref e) = result {
         let error_message = e.message_with_source(&input);
-        return format!("__ConsoleOutput__{}__Result__{}", error_message, Value::Void);
+        return format!(
+            "__ConsoleOutput__{}__Result__{}",
+            error_message,
+            Value::Void
+        );
     }
 
     let output = CONSOLE_OUTPUT.with(|output| output.borrow().clone());

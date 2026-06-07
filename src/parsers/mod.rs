@@ -1,34 +1,33 @@
-pub mod struct_ast;
-pub mod function_ast;
-pub mod return_ast;
+pub mod assign_ast;
+pub mod block_ast;
 pub mod break_ast;
 pub mod continue_ast;
 pub mod dict_ast;
-pub mod assign_ast;
-pub mod literal_ast;
-pub mod pipe_ast;
-pub mod lambda_ast;
-pub mod infer_type;
 pub mod for_ast;
-pub mod if_ast;
+pub mod function_ast;
 pub mod identifier_ast;
-pub mod method_ast;
-pub mod list_ast;
-pub mod block_ast;
-pub mod prefix_op_ast;
-pub mod string_to_value_type;
+pub mod if_ast;
 pub mod import_ast;
-pub mod parse_error;
-pub mod option_ast;
-pub mod result_ast;
+pub mod infer_type;
+pub mod lambda_ast;
+pub mod list_ast;
+pub mod literal_ast;
 pub mod match_ast;
+pub mod method_ast;
+pub mod option_ast;
+pub mod parse_error;
+pub mod pipe_ast;
+pub mod prefix_op_ast;
+pub mod result_ast;
+pub mod return_ast;
+pub mod string_to_value_type;
+pub mod struct_ast;
 
-
-use crate::environment::{EnvVariableType, ValueType, MethodInfo};
-use crate::token::{Token, TokenKind};
 use crate::ast::ASTNode;
-use crate::value::Value;
+use crate::environment::{EnvVariableType, MethodInfo, ValueType};
 use crate::parsers::parse_error::ParseError;
+use crate::token::{Token, TokenKind};
+use crate::value::Value;
 use std::collections::HashMap;
 
 pub struct Parser {
@@ -44,7 +43,10 @@ pub struct Parser {
 }
 
 impl Parser {
-    pub fn new(tokens: Vec<Token>, initial_functions: HashMap<(String, String), ValueType>) -> Self {
+    pub fn new(
+        tokens: Vec<Token>,
+        initial_functions: HashMap<(String, String), ValueType>,
+    ) -> Self {
         let lines = Self::split_lines(tokens);
         Parser {
             tokens: lines.clone(),
@@ -89,7 +91,7 @@ impl Parser {
     fn enter_scope(&mut self, scope_name: String) {
         self.scopes.push(scope_name);
     }
-    
+
     fn leave_scope(&mut self) {
         self.scopes.pop();
     }
@@ -100,28 +102,63 @@ impl Parser {
 
     fn register_struct(&mut self, scope: String, struct_value: ASTNode) {
         if let ASTNode::Struct { name, fields, .. } = &struct_value {
-            let field_types = fields.iter().map(|(name, field)| {
-                if let ASTNode::StructField { value_type, is_public, .. } = field {
-                    (name.clone(), ValueType::StructField { value_type: Box::new(value_type.clone()), is_public: is_public.clone() })
-                } else {
-                    panic!("invalid struct field")
-                }
-            }).collect();
+            let field_types = fields
+                .iter()
+                .map(|(name, field)| {
+                    if let ASTNode::StructField {
+                        value_type,
+                        is_public,
+                        ..
+                    } = field
+                    {
+                        (
+                            name.clone(),
+                            ValueType::StructField {
+                                value_type: Box::new(value_type.clone()),
+                                is_public: is_public.clone(),
+                            },
+                        )
+                    } else {
+                        panic!("invalid struct field")
+                    }
+                })
+                .collect();
             let methods = HashMap::new();
-            let insert_value = (ValueType::Struct { name: name.clone(), fields: field_types, methods }, EnvVariableType::Immutable, HashMap::new());
-            self.structs.insert(
-                (scope.to_string(), name.to_string()),
-                insert_value,
+            let insert_value = (
+                ValueType::Struct {
+                    name: name.clone(),
+                    fields: field_types,
+                    methods,
+                },
+                EnvVariableType::Immutable,
+                HashMap::new(),
             );
+            self.structs
+                .insert((scope.to_string(), name.to_string()), insert_value);
         }
     }
 
     fn register_method(&mut self, scope: String, struct_name: String, method: ASTNode) {
-        if let ASTNode::Method { name: method_name, arguments, body, return_type, is_mut, .. } = method.clone() {
+        if let ASTNode::Method {
+            name: method_name,
+            arguments,
+            body,
+            return_type,
+            is_mut,
+            ..
+        } = method.clone()
+        {
             for scope in vec![scope.to_string(), "global".to_string()] {
-                if let Some((value_type, _, _)) = self.structs.get_mut(&(scope.to_string(), struct_name.to_string())) {
+                if let Some((value_type, _, _)) = self
+                    .structs
+                    .get_mut(&(scope.to_string(), struct_name.to_string()))
+                {
                     match value_type {
-                        ValueType::Struct { name: _, fields: _, methods } => {
+                        ValueType::Struct {
+                            name: _,
+                            fields: _,
+                            methods,
+                        } => {
                             let method_info = MethodInfo {
                                 arguments: arguments.clone(),
                                 body: Some(*body),
@@ -129,9 +166,9 @@ impl Parser {
                                 is_mut: is_mut.clone(),
                             };
                             methods.insert(method_name.clone(), method_info);
-                            break
+                            break;
                         }
-                        _ => panic!("invalid method")
+                        _ => panic!("invalid method"),
                     }
                 }
             }
@@ -142,11 +179,12 @@ impl Parser {
 
     fn get_struct(&self, scope: String, name: String) -> Option<ValueType> {
         for checked_scope in vec![scope.to_string(), "global".to_string()] {
-            match self.structs.get(&(checked_scope.to_string(), name.to_string())) {
+            match self
+                .structs
+                .get(&(checked_scope.to_string(), name.to_string()))
+            {
                 Some((value_type, _, ..)) => match value_type.clone() {
-                    ValueType::Struct { .. } => {
-                        return Some(value_type.clone())
-                    },
+                    ValueType::Struct { .. } => return Some(value_type.clone()),
                     _ => return None,
                 },
                 None => {}
@@ -159,18 +197,19 @@ impl Parser {
         &mut self,
         scope: String,
         name: &String,
-        _arguments: &Vec<ASTNode>,  // arugmentsも多重定義を許容するときに使う
+        _arguments: &Vec<ASTNode>, // arugmentsも多重定義を許容するときに使う
         return_type: &ValueType,
     ) {
-        self.functions.insert(
-            (scope.clone(), name.to_string()),
-            return_type.clone(),
-        );
+        self.functions
+            .insert((scope.clone(), name.to_string()), return_type.clone());
     }
 
     fn get_function(&self, scope: String, name: String) -> Option<ValueType> {
         for checked_scope in vec![scope.to_string(), "global".to_string()] {
-            match self.functions.get(&(checked_scope.to_string(), name.to_string())) {
+            match self
+                .functions
+                .get(&(checked_scope.to_string(), name.to_string()))
+            {
                 Some(value) => return Some(value.clone()),
                 None => {}
             };
@@ -178,250 +217,251 @@ impl Parser {
         None
     }
 
-    fn get_method(&self, _scope: String, value_type: ValueType, method_name: String) -> Option<MethodInfo> {
+    fn get_method(
+        &self,
+        _scope: String,
+        value_type: ValueType,
+        method_name: String,
+    ) -> Option<MethodInfo> {
         match value_type {
-            ValueType::Struct { name: _, fields: _, methods } => {
-                match methods.get(&method_name) {
-                    Some(method) => Some(method.clone()),
-                    None => None
-                }
+            ValueType::Struct {
+                name: _,
+                fields: _,
+                methods,
+            } => match methods.get(&method_name) {
+                Some(method) => Some(method.clone()),
+                None => None,
             },
-            ValueType::List(_value_type) => {
-                match method_name.as_str() {
-                    "push" => Some(MethodInfo {
-                        arguments: vec![],
-                        body: None,
-                        return_type: ValueType::Void,
-                        is_mut: true,
-                    }),
-                    "pop" => Some(MethodInfo {
-                        arguments: vec![],
-                        body: None,
-                        return_type: ValueType::OptionType(Box::new(_value_type.as_ref().clone())),
-                        is_mut: true,
-                    }),
-                    "len" => Some(MethodInfo {
-                        arguments: vec![],
-                        body: None,
-                        return_type: ValueType::Number,
-                        is_mut: false,
-                    }),
-                    "is_empty" => Some(MethodInfo {
-                        arguments: vec![],
-                        body: None,
-                        return_type: ValueType::Bool,
-                        is_mut: false,
-                    }),
-                    "first" => Some(MethodInfo {
-                        arguments: vec![],
-                        body: None,
-                        return_type: ValueType::OptionType(Box::new(_value_type.as_ref().clone())),
-                        is_mut: false,
-                    }),
-                    "last" => Some(MethodInfo {
-                        arguments: vec![],
-                        body: None,
-                        return_type: ValueType::OptionType(Box::new(_value_type.as_ref().clone())),
-                        is_mut: false,
-                    }),
-                    "clear" => Some(MethodInfo {
-                        arguments: vec![],
-                        body: None,
-                        return_type: ValueType::Void,
-                        is_mut: true,
-                    }),
-                    "contains" => Some(MethodInfo {
-                        arguments: vec![],
-                        body: None,
-                        return_type: ValueType::Bool,
-                        is_mut: false,
-                    }),
-                    "reverse" => Some(MethodInfo {
-                        arguments: vec![],
-                        body: None,
-                        return_type: ValueType::Void,
-                        is_mut: true,
-                    }),
-                    _ => None
-                }
-            }
-            ValueType::Dict(_value_type) => {
-                match method_name.as_str() {
-                    "get" => Some(MethodInfo {
-                        arguments: vec![],
-                        body: None,
-                        return_type: ValueType::OptionType(Box::new(_value_type.as_ref().clone())),
-                        is_mut: false,
-                    }),
-                    "insert" => Some(MethodInfo {
-                        arguments: vec![],
-                        body: None,
-                        return_type: ValueType::OptionType(Box::new(_value_type.as_ref().clone())),
-                        is_mut: true,
-                    }),
-                    "remove" => Some(MethodInfo {
-                        arguments: vec![],
-                        body: None,
-                        return_type: ValueType::OptionType(Box::new(_value_type.as_ref().clone())),
-                        is_mut: true,
-                    }),
-                    "contains_key" => Some(MethodInfo {
-                        arguments: vec![],
-                        body: None,
-                        return_type: ValueType::Bool,
-                        is_mut: false,
-                    }),
-                    "keys" => Some(MethodInfo {
-                        arguments: vec![],
-                        body: None,
-                        return_type: ValueType::List(Box::new(ValueType::String)),
-                        is_mut: false,
-                    }),
-                    "values" => Some(MethodInfo {
-                        arguments: vec![],
-                        body: None,
-                        return_type: ValueType::List(Box::new(_value_type.as_ref().clone())),
-                        is_mut: false,
-                    }),
-                    "len" => Some(MethodInfo {
-                        arguments: vec![],
-                        body: None,
-                        return_type: ValueType::Number,
-                        is_mut: false,
-                    }),
-                    "is_empty" => Some(MethodInfo {
-                        arguments: vec![],
-                        body: None,
-                        return_type: ValueType::Bool,
-                        is_mut: false,
-                    }),
-                    "clear" => Some(MethodInfo {
-                        arguments: vec![],
-                        body: None,
-                        return_type: ValueType::Void,
-                        is_mut: true,
-                    }),
-                    "update" => Some(MethodInfo {
-                        arguments: vec![],
-                        body: None,
-                        return_type: ValueType::Void,
-                        is_mut: true,
-                    }),
-                    "entry" => Some(MethodInfo {
-                        arguments: vec![],
-                        body: None,
-                        return_type: ValueType::OptionType(Box::new(_value_type.as_ref().clone())),
-                        is_mut: true,
-                    }),
-                    "get_or_insert" => Some(MethodInfo {
-                        arguments: vec![],
-                        body: None,
-                        return_type: _value_type.as_ref().clone(),
-                        is_mut: true,
-                    }),
-                    _ => None
-                }
-            }
+            ValueType::List(_value_type) => match method_name.as_str() {
+                "push" => Some(MethodInfo {
+                    arguments: vec![],
+                    body: None,
+                    return_type: ValueType::Void,
+                    is_mut: true,
+                }),
+                "pop" => Some(MethodInfo {
+                    arguments: vec![],
+                    body: None,
+                    return_type: ValueType::OptionType(Box::new(_value_type.as_ref().clone())),
+                    is_mut: true,
+                }),
+                "len" => Some(MethodInfo {
+                    arguments: vec![],
+                    body: None,
+                    return_type: ValueType::Number,
+                    is_mut: false,
+                }),
+                "is_empty" => Some(MethodInfo {
+                    arguments: vec![],
+                    body: None,
+                    return_type: ValueType::Bool,
+                    is_mut: false,
+                }),
+                "first" => Some(MethodInfo {
+                    arguments: vec![],
+                    body: None,
+                    return_type: ValueType::OptionType(Box::new(_value_type.as_ref().clone())),
+                    is_mut: false,
+                }),
+                "last" => Some(MethodInfo {
+                    arguments: vec![],
+                    body: None,
+                    return_type: ValueType::OptionType(Box::new(_value_type.as_ref().clone())),
+                    is_mut: false,
+                }),
+                "clear" => Some(MethodInfo {
+                    arguments: vec![],
+                    body: None,
+                    return_type: ValueType::Void,
+                    is_mut: true,
+                }),
+                "contains" => Some(MethodInfo {
+                    arguments: vec![],
+                    body: None,
+                    return_type: ValueType::Bool,
+                    is_mut: false,
+                }),
+                "reverse" => Some(MethodInfo {
+                    arguments: vec![],
+                    body: None,
+                    return_type: ValueType::Void,
+                    is_mut: true,
+                }),
+                _ => None,
+            },
+            ValueType::Dict(_value_type) => match method_name.as_str() {
+                "get" => Some(MethodInfo {
+                    arguments: vec![],
+                    body: None,
+                    return_type: ValueType::OptionType(Box::new(_value_type.as_ref().clone())),
+                    is_mut: false,
+                }),
+                "insert" => Some(MethodInfo {
+                    arguments: vec![],
+                    body: None,
+                    return_type: ValueType::OptionType(Box::new(_value_type.as_ref().clone())),
+                    is_mut: true,
+                }),
+                "remove" => Some(MethodInfo {
+                    arguments: vec![],
+                    body: None,
+                    return_type: ValueType::OptionType(Box::new(_value_type.as_ref().clone())),
+                    is_mut: true,
+                }),
+                "contains_key" => Some(MethodInfo {
+                    arguments: vec![],
+                    body: None,
+                    return_type: ValueType::Bool,
+                    is_mut: false,
+                }),
+                "keys" => Some(MethodInfo {
+                    arguments: vec![],
+                    body: None,
+                    return_type: ValueType::List(Box::new(ValueType::String)),
+                    is_mut: false,
+                }),
+                "values" => Some(MethodInfo {
+                    arguments: vec![],
+                    body: None,
+                    return_type: ValueType::List(Box::new(_value_type.as_ref().clone())),
+                    is_mut: false,
+                }),
+                "len" => Some(MethodInfo {
+                    arguments: vec![],
+                    body: None,
+                    return_type: ValueType::Number,
+                    is_mut: false,
+                }),
+                "is_empty" => Some(MethodInfo {
+                    arguments: vec![],
+                    body: None,
+                    return_type: ValueType::Bool,
+                    is_mut: false,
+                }),
+                "clear" => Some(MethodInfo {
+                    arguments: vec![],
+                    body: None,
+                    return_type: ValueType::Void,
+                    is_mut: true,
+                }),
+                "update" => Some(MethodInfo {
+                    arguments: vec![],
+                    body: None,
+                    return_type: ValueType::Void,
+                    is_mut: true,
+                }),
+                "entry" => Some(MethodInfo {
+                    arguments: vec![],
+                    body: None,
+                    return_type: ValueType::OptionType(Box::new(_value_type.as_ref().clone())),
+                    is_mut: true,
+                }),
+                "get_or_insert" => Some(MethodInfo {
+                    arguments: vec![],
+                    body: None,
+                    return_type: _value_type.as_ref().clone(),
+                    is_mut: true,
+                }),
+                _ => None,
+            },
             ValueType::StructInstance { name, fields: _ } => {
                 match self.get_struct(self.get_current_scope(), name.clone()) {
-                    Some(ValueType::Struct { name: _, fields: _, methods }) => {
-                        match methods.get(&method_name) {
-                            Some(method) => Some(method.clone()),
-                            None => None
-                        }
+                    Some(ValueType::Struct {
+                        name: _,
+                        fields: _,
+                        methods,
+                    }) => match methods.get(&method_name) {
+                        Some(method) => Some(method.clone()),
+                        None => None,
                     },
-                    _ => None
+                    _ => None,
                 }
             }
-            ValueType::Number => {
-                match method_name.as_str() {
-                    "to_string" => Some(MethodInfo {
-                        arguments: vec![],
-                        body: None,
-                        return_type: ValueType::String,
-                        is_mut: false,
-                    }),
-                    "sqrt" => Some(MethodInfo {
-                        arguments: vec![],
-                        body: None,
-                        return_type: ValueType::Number,
-                        is_mut: false,
-                    }),
-                    "round" => Some(MethodInfo {
-                        arguments: vec![],
-                        body: None,
-                        return_type: ValueType::Number,
-                        is_mut: false,
-                    }),
-                    _ => None
-                }
-            }
-            ValueType::String => {
-                match method_name.as_str() {
-                    "len" => Some(MethodInfo {
-                        arguments: vec![],
-                        body: None,
-                        return_type: ValueType::Number,
-                        is_mut: false,
-                    }),
-                    "is_empty" => Some(MethodInfo {
-                        arguments: vec![],
-                        body: None,
-                        return_type: ValueType::Bool,
-                        is_mut: false,
-                    }),
-                    "to_uppercase" => Some(MethodInfo {
-                        arguments: vec![],
-                        body: None,
-                        return_type: ValueType::String,
-                        is_mut: false,
-                    }),
-                    "to_lowercase" => Some(MethodInfo {
-                        arguments: vec![],
-                        body: None,
-                        return_type: ValueType::String,
-                        is_mut: false,
-                    }),
-                    "trim" => Some(MethodInfo {
-                        arguments: vec![],
-                        body: None,
-                        return_type: ValueType::String,
-                        is_mut: false,
-                    }),
-                    "contains" => Some(MethodInfo {
-                        arguments: vec![],
-                        body: None,
-                        return_type: ValueType::Bool,
-                        is_mut: false,
-                    }),
-                    "starts_with" => Some(MethodInfo {
-                        arguments: vec![],
-                        body: None,
-                        return_type: ValueType::Bool,
-                        is_mut: false,
-                    }),
-                    "ends_with" => Some(MethodInfo {
-                        arguments: vec![],
-                        body: None,
-                        return_type: ValueType::Bool,
-                        is_mut: false,
-                    }),
-                    "split" => Some(MethodInfo {
-                        arguments: vec![],
-                        body: None,
-                        return_type: ValueType::List(Box::new(ValueType::String)),
-                        is_mut: false,
-                    }),
-                    "replace" => Some(MethodInfo {
-                        arguments: vec![],
-                        body: None,
-                        return_type: ValueType::String,
-                        is_mut: false,
-                    }),
-                    _ => None
-                }
-            }
-            _ => None
+            ValueType::Number => match method_name.as_str() {
+                "to_string" => Some(MethodInfo {
+                    arguments: vec![],
+                    body: None,
+                    return_type: ValueType::String,
+                    is_mut: false,
+                }),
+                "sqrt" => Some(MethodInfo {
+                    arguments: vec![],
+                    body: None,
+                    return_type: ValueType::Number,
+                    is_mut: false,
+                }),
+                "round" => Some(MethodInfo {
+                    arguments: vec![],
+                    body: None,
+                    return_type: ValueType::Number,
+                    is_mut: false,
+                }),
+                _ => None,
+            },
+            ValueType::String => match method_name.as_str() {
+                "len" => Some(MethodInfo {
+                    arguments: vec![],
+                    body: None,
+                    return_type: ValueType::Number,
+                    is_mut: false,
+                }),
+                "is_empty" => Some(MethodInfo {
+                    arguments: vec![],
+                    body: None,
+                    return_type: ValueType::Bool,
+                    is_mut: false,
+                }),
+                "to_uppercase" => Some(MethodInfo {
+                    arguments: vec![],
+                    body: None,
+                    return_type: ValueType::String,
+                    is_mut: false,
+                }),
+                "to_lowercase" => Some(MethodInfo {
+                    arguments: vec![],
+                    body: None,
+                    return_type: ValueType::String,
+                    is_mut: false,
+                }),
+                "trim" => Some(MethodInfo {
+                    arguments: vec![],
+                    body: None,
+                    return_type: ValueType::String,
+                    is_mut: false,
+                }),
+                "contains" => Some(MethodInfo {
+                    arguments: vec![],
+                    body: None,
+                    return_type: ValueType::Bool,
+                    is_mut: false,
+                }),
+                "starts_with" => Some(MethodInfo {
+                    arguments: vec![],
+                    body: None,
+                    return_type: ValueType::Bool,
+                    is_mut: false,
+                }),
+                "ends_with" => Some(MethodInfo {
+                    arguments: vec![],
+                    body: None,
+                    return_type: ValueType::Bool,
+                    is_mut: false,
+                }),
+                "split" => Some(MethodInfo {
+                    arguments: vec![],
+                    body: None,
+                    return_type: ValueType::List(Box::new(ValueType::String)),
+                    is_mut: false,
+                }),
+                "replace" => Some(MethodInfo {
+                    arguments: vec![],
+                    body: None,
+                    return_type: ValueType::String,
+                    is_mut: false,
+                }),
+                _ => None,
+            },
+            _ => None,
         }
     }
 
@@ -438,11 +478,7 @@ impl Parser {
         );
     }
 
-    fn find_variables(
-        &self,
-        scope: String,
-        name: String,
-    ) -> Option<(ValueType, EnvVariableType)> {
+    fn find_variables(&self, scope: String, name: String) -> Option<(ValueType, EnvVariableType)> {
         for checked_scope in vec![scope.to_string(), "global".to_string()] {
             match self
                 .variables
@@ -453,15 +489,42 @@ impl Parser {
                     &ValueType::String => return Some((ValueType::String, value.1.clone())),
                     &ValueType::Bool => return Some((ValueType::Bool, value.1.clone())),
                     &ValueType::Function => return Some((ValueType::Function, value.1.clone())),
-                    &ValueType::StructInstance{ref name, ref fields} => {
-                        return Some((ValueType::StructInstance{name: name.to_string(), fields: fields.clone()}, value.1.clone()))
-                    },
-                    &ValueType::List(ref value_type) => return Some((ValueType::List(Box::new(*value_type.clone())), value.1.clone())),
-                    &ValueType::Dict(ref value_type) => return Some((ValueType::Dict(value_type.clone()), value.1.clone())),
-                    &ValueType::OptionType(ref value_type) => return Some((ValueType::OptionType(value_type.clone()), value.1.clone())),
-                    &ValueType::ResultType{ref success, ref failure} => {
-                        return Some((ValueType::ResultType{success: success.clone(), failure: failure.clone()}, value.1.clone()))
-                    },
+                    &ValueType::StructInstance {
+                        ref name,
+                        ref fields,
+                    } => {
+                        return Some((
+                            ValueType::StructInstance {
+                                name: name.to_string(),
+                                fields: fields.clone(),
+                            },
+                            value.1.clone(),
+                        ))
+                    }
+                    &ValueType::List(ref value_type) => {
+                        return Some((
+                            ValueType::List(Box::new(*value_type.clone())),
+                            value.1.clone(),
+                        ))
+                    }
+                    &ValueType::Dict(ref value_type) => {
+                        return Some((ValueType::Dict(value_type.clone()), value.1.clone()))
+                    }
+                    &ValueType::OptionType(ref value_type) => {
+                        return Some((ValueType::OptionType(value_type.clone()), value.1.clone()))
+                    }
+                    &ValueType::ResultType {
+                        ref success,
+                        ref failure,
+                    } => {
+                        return Some((
+                            ValueType::ResultType {
+                                success: success.clone(),
+                                failure: failure.clone(),
+                            },
+                            value.1.clone(),
+                        ))
+                    }
                     &ValueType::Any => return Some((ValueType::Any, value.1.clone())),
                     _ => return None,
                 },
@@ -477,7 +540,11 @@ impl Parser {
         for token in tokens.clone() {
             if token.kind == TokenKind::Eof {
                 if !current_line.is_empty() {
-                    current_line.push(Token{kind: TokenKind::Eof, line: token.line, column: token.column + 1});
+                    current_line.push(Token {
+                        kind: TokenKind::Eof,
+                        line: token.line,
+                        column: token.column + 1,
+                    });
                     lines.push(current_line);
                     current_line = Vec::new();
                 }
@@ -486,7 +553,11 @@ impl Parser {
             }
         }
         if !current_line.is_empty() {
-            current_line.push(Token{kind: TokenKind::Eof, line: tokens.len(), column: tokens.last().unwrap().column + 1});
+            current_line.push(Token {
+                kind: TokenKind::Eof,
+                line: tokens.len(),
+                column: tokens.last().unwrap().column + 1,
+            });
             lines.push(current_line);
         }
         lines
@@ -508,9 +579,17 @@ impl Parser {
 
     pub fn extract_token(&mut self, token: TokenKind) -> Token {
         match self.get_current_token() {
-            Some(Token{kind: current_token_kind, line, column}) if current_token_kind == token => {
+            Some(Token {
+                kind: current_token_kind,
+                line,
+                column,
+            }) if current_token_kind == token => {
                 self.pos += 1;
-                Token{kind: current_token_kind, line, column}
+                Token {
+                    kind: current_token_kind,
+                    line,
+                    column,
+                }
             }
             _ => panic!("unexpected token: {:?}", token),
         }
@@ -521,11 +600,13 @@ impl Parser {
         let next_token = self.get_current_token();
         self.pos -= 1;
         match next_token {
-            Some(Token { kind: TokenKind::LParen, .. }) => true,
+            Some(Token {
+                kind: TokenKind::LParen,
+                ..
+            }) => true,
             _ => false,
         }
     }
-
 
     fn parse_primary(&mut self) -> Result<ASTNode, ParseError> {
         let token = match self.get_current_token() {
@@ -577,23 +658,26 @@ impl Parser {
                     _ => {}
                 }
                 Ok(ast_if)
-            },
+            }
             TokenKind::LParen => {
                 self.consume_token(); // Consume the left parenthesis
                 let expr = self.parse_expression(0)?;
-                
+
                 // Check for and consume the right parenthesis
                 match self.get_current_token() {
-                    Some(Token{kind: TokenKind::RParen, ..}) => {
+                    Some(Token {
+                        kind: TokenKind::RParen,
+                        ..
+                    }) => {
                         self.consume_token();
                         Ok(expr)
-                    },
+                    }
                     _ => {
                         let (line, column) = self.get_line_column();
                         Err(ParseError {
                             message: "Expected closing parenthesis".to_string(),
                             line,
-                            column
+                            column,
                         })
                     }
                 }
@@ -601,21 +685,24 @@ impl Parser {
             TokenKind::LBrace => {
                 self.pos += 1;
                 match self.get_current_token() {
-                    Some(token) if token.kind == TokenKind::Colon => {
-                        self.parse_dict()
-                    },
+                    Some(token) if token.kind == TokenKind::Colon => self.parse_dict(),
                     _ => {
                         self.pos -= 1;
                         self.parse_block()
-                    },
+                    }
                 }
-            },
-            TokenKind::LBrancket => self.parse_list(),
-            TokenKind::Identifier(name) => {
-                self.parse_identifier(name)
             }
-            TokenKind::CommentBlock(comment) => Ok(ASTNode::CommentBlock{comment: comment.to_string(), line: token.line, column: token.column}),
-            _ => Err(ParseError::new(format!("unexpected token: {:?}", token.kind).as_str(), &token)),
+            TokenKind::LBrancket => self.parse_list(),
+            TokenKind::Identifier(name) => self.parse_identifier(name),
+            TokenKind::CommentBlock(comment) => Ok(ASTNode::CommentBlock {
+                comment: comment.to_string(),
+                line: token.line,
+                column: token.column,
+            }),
+            _ => Err(ParseError::new(
+                format!("unexpected token: {:?}", token.kind).as_str(),
+                &token,
+            )),
         }
     }
 
@@ -630,88 +717,113 @@ impl Parser {
                 self.pos += 2;
                 if let TokenKind::LParen = self.get_current_token().unwrap().kind {
                     self.pos -= 1;
-                    if let TokenKind::Identifier(method_name) = self.get_current_token().unwrap().kind {
+                    if let TokenKind::Identifier(method_name) =
+                        self.get_current_token().unwrap().kind
+                    {
                         self.pos += 1;
                         let args = self.parse_function_call_arguments_paren()?;
 
                         let builtin = match lhs {
-                            ASTNode::Literal{value: Value::Number(_), ..} => true,
-                            ASTNode::Literal{value: Value::String(_), ..} => true,
-                            ASTNode::Literal{value: Value::Bool(_), ..} => true,
-                            ASTNode::Literal{value: Value::Void, ..} => true,
-                            ASTNode::Literal{value: Value::List(_), ..} => true,
-                            ASTNode::Literal{value: Value::Dict(_), ..} => true,
+                            ASTNode::Literal {
+                                value: Value::Number(_),
+                                ..
+                            } => true,
+                            ASTNode::Literal {
+                                value: Value::String(_),
+                                ..
+                            } => true,
+                            ASTNode::Literal {
+                                value: Value::Bool(_),
+                                ..
+                            } => true,
+                            ASTNode::Literal {
+                                value: Value::Void, ..
+                            } => true,
+                            ASTNode::Literal {
+                                value: Value::List(_),
+                                ..
+                            } => true,
+                            ASTNode::Literal {
+                                value: Value::Dict(_),
+                                ..
+                            } => true,
                             ASTNode::FunctionCall { ref name, .. } => {
                                 match self.get_function(self.get_current_scope(), name.clone()) {
-                                    Some(value_type) => {
-                                        match value_type {
-                                            ValueType::Number => true,
-                                            ValueType::String => true,
-                                            ValueType::Bool => true,
-                                            ValueType::Void => true,
-                                            ValueType::List(_) => true,
-                                            ValueType::Dict(_) => true,
-                                            _ => false,
-                                        }
-                                    }
+                                    Some(value_type) => match value_type {
+                                        ValueType::Number => true,
+                                        ValueType::String => true,
+                                        ValueType::Bool => true,
+                                        ValueType::Void => true,
+                                        ValueType::List(_) => true,
+                                        ValueType::Dict(_) => true,
+                                        _ => false,
+                                    },
                                     _ => false,
                                 }
-                            },
+                            }
                             ASTNode::MethodCall { ref caller, .. } => {
                                 let method_info = match self.infer_type(caller) {
-                                    Ok(ValueType::StructInstance{ name, .. }) => {
-                                        let methods = match self.get_struct(self.get_current_scope(), name.clone()) {
-                                            Some(ValueType::Struct { name: _, fields: _, methods }) => methods,
+                                    Ok(ValueType::StructInstance { name, .. }) => {
+                                        let methods = match self
+                                            .get_struct(self.get_current_scope(), name.clone())
+                                        {
+                                            Some(ValueType::Struct {
+                                                name: _,
+                                                fields: _,
+                                                methods,
+                                            }) => methods,
                                             _ => panic!("invalid struct"),
                                         };
                                         let caller_method_name = match lhs {
-                                            ASTNode::MethodCall { ref method_name, .. } => method_name,
+                                            ASTNode::MethodCall {
+                                                ref method_name, ..
+                                            } => method_name,
                                             _ => panic!("invalid method call"),
                                         };
                                         match methods.get(caller_method_name) {
                                             Some(method_info) => Some(method_info.clone()),
                                             None => None,
                                         }
-                                    },
+                                    }
                                     Ok(value_type) => {
-                                        match self.get_method(self.get_current_scope(), value_type, method_name.clone()) {
+                                        match self.get_method(
+                                            self.get_current_scope(),
+                                            value_type,
+                                            method_name.clone(),
+                                        ) {
                                             Some(method_info) => Some(method_info.clone()),
                                             None => None,
                                         }
-                                    },
+                                    }
                                     _ => None,
                                 };
                                 match method_info {
-                                    Some(MethodInfo { return_type, .. }) => {
-                                        match return_type {
-                                            ValueType::Number => true,
-                                            ValueType::String => true,
-                                            ValueType::Bool => true,
-                                            ValueType::Void => true,
-                                            ValueType::List(_) => true,
-                                            ValueType::Dict(_) => true,
-                                            _ => false,
-                                        }
+                                    Some(MethodInfo { return_type, .. }) => match return_type {
+                                        ValueType::Number => true,
+                                        ValueType::String => true,
+                                        ValueType::Bool => true,
+                                        ValueType::Void => true,
+                                        ValueType::List(_) => true,
+                                        ValueType::Dict(_) => true,
+                                        _ => false,
                                     },
                                     None => false,
                                 }
-                            },
+                            }
                             ASTNode::Variable { ref name, .. } => {
                                 match self.find_variables(self.get_current_scope(), name.clone()) {
-                                    Some((value_type, _)) => {
-                                        match value_type {
-                                            ValueType::Number => true,
-                                            ValueType::String => true,
-                                            ValueType::Bool => true,
-                                            ValueType::Void => true,
-                                            ValueType::List(_) => true,
-                                            ValueType::Dict(_) => true,
-                                            _ => false,
-                                        }
-                                    }
+                                    Some((value_type, _)) => match value_type {
+                                        ValueType::Number => true,
+                                        ValueType::String => true,
+                                        ValueType::Bool => true,
+                                        ValueType::Void => true,
+                                        ValueType::List(_) => true,
+                                        ValueType::Dict(_) => true,
+                                        _ => false,
+                                    },
                                     None => false,
                                 }
-                            },
+                            }
                             _ => match self.infer_type(&lhs) {
                                 Ok(ValueType::Number) => true,
                                 Ok(ValueType::String) => true,
@@ -723,19 +835,22 @@ impl Parser {
                             },
                         };
 
-                        lhs = ASTNode::MethodCall{
+                        lhs = ASTNode::MethodCall {
                             caller: Box::new(lhs.clone()),
                             method_name,
                             builtin,
                             arguments: match args {
-                                ASTNode::FunctionCallArgs{args, line, column} => {
-                                    Box::new(ASTNode::FunctionCallArgs{
-                                        args: vec![lhs].into_iter().chain(args.into_iter()).collect(),
+                                ASTNode::FunctionCallArgs { args, line, column } => {
+                                    Box::new(ASTNode::FunctionCallArgs {
+                                        args: vec![lhs]
+                                            .into_iter()
+                                            .chain(args.into_iter())
+                                            .collect(),
                                         line,
                                         column,
                                     })
                                 }
-                                _ => Box::new(ASTNode::FunctionCallArgs{
+                                _ => Box::new(ASTNode::FunctionCallArgs {
                                     args: vec![lhs],
                                     line: token.line,
                                     column: token.column,
@@ -831,14 +946,13 @@ impl Parser {
         // 比較演算子やビット演算子の優先度を定義
         // 左結合と右結合を考慮して (left_priority, right_priority) のタプルを返す
         match token.kind {
-            TokenKind::Lt  | TokenKind::Gt  |
-            TokenKind::Lte | TokenKind::Gte => Some((1, 2)),
+            TokenKind::Lt | TokenKind::Gt | TokenKind::Lte | TokenKind::Gte => Some((1, 2)),
             TokenKind::Eq => Some((2, 3)),
             TokenKind::And => Some((3, 4)),
             TokenKind::Xor => Some((4, 5)),
             TokenKind::Or => Some((5, 6)),
             TokenKind::Plus | TokenKind::Minus => Some((6, 7)),
-            TokenKind::Mul  | TokenKind::Div | TokenKind::Mod => Some((7, 8)),
+            TokenKind::Mul | TokenKind::Div | TokenKind::Mod => Some((7, 8)),
             TokenKind::Pow => Some((8, 8)),
             _ => None,
         }
@@ -865,14 +979,13 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use fraction::Fraction;
-    use crate::token::TokenKind;
     use crate::ast::ASTNode;
-    use crate::value::Value;
-    use crate::environment::{EnvVariableType, Env, ValueType};
     use crate::builtin::register_builtins;
+    use crate::environment::{Env, EnvVariableType, ValueType};
+    use crate::token::TokenKind;
     use crate::tokenizer::tokenize;
-
+    use crate::value::Value;
+    use fraction::Fraction;
 
     #[test]
     fn test_four_basic_arithmetic_operations() {
@@ -883,50 +996,39 @@ mod tests {
         let mut parser = Parser::new(tokens, builtins);
         match parser.parse() {
             Ok(ASTNode::BinaryOp {
-                left,
-                op,
-                right,
-                ..
+                left, op, right, ..
             }) => {
                 match left.as_ref() {
                     ASTNode::PrefixOp {
                         op: TokenKind::Minus,
                         expr,
                         ..
-                    } => {
-                        match expr.as_ref() {
-                            ASTNode::Literal{value, ..} => {
-                                assert_eq!(*value, Value::Number(Fraction::from(1)));
-                            }
-                            _ => panic!("Invalid ASTNode"),
+                    } => match expr.as_ref() {
+                        ASTNode::Literal { value, .. } => {
+                            assert_eq!(*value, Value::Number(Fraction::from(1)));
                         }
-                    }
+                        _ => panic!("Invalid ASTNode"),
+                    },
                     _ => panic!("Invalid ASTNode"),
                 }
                 assert_eq!(op, TokenKind::Plus);
                 match right.as_ref() {
                     ASTNode::BinaryOp {
-                        left,
-                        op,
-                        right,
-                        ..
+                        left, op, right, ..
                     } => {
                         match left.as_ref() {
                             ASTNode::BinaryOp {
-                                left,
-                                op,
-                                right,
-                                ..
+                                left, op, right, ..
                             } => {
                                 match left.as_ref() {
-                                    ASTNode::Literal{value, ..} => {
+                                    ASTNode::Literal { value, .. } => {
                                         assert_eq!(*value, Value::Number(Fraction::from(2)));
                                     }
                                     _ => panic!("Invalid ASTNode"),
                                 }
                                 assert_eq!(*op, TokenKind::Mul);
                                 match right.as_ref() {
-                                    ASTNode::Literal{value, ..} => {
+                                    ASTNode::Literal { value, .. } => {
                                         assert_eq!(*value, Value::Number(Fraction::from(3)));
                                     }
                                     _ => panic!("Invalid ASTNode"),
@@ -936,7 +1038,7 @@ mod tests {
                         }
                         assert_eq!(*op, TokenKind::Mod);
                         match right.as_ref() {
-                            ASTNode::Literal{value, ..} => {
+                            ASTNode::Literal { value, .. } => {
                                 assert_eq!(*value, Value::Number(Fraction::from(3)));
                             }
                             _ => panic!("Invalid ASTNode"),
@@ -966,7 +1068,7 @@ mod tests {
             }) => {
                 assert_eq!(name, "x");
                 match value.as_ref() {
-                    ASTNode::Literal{value, ..} => {
+                    ASTNode::Literal { value, .. } => {
                         assert_eq!(*value, Value::Number(Fraction::from(1)));
                     }
                     _ => assert!(false, "Invalid ASTNode"),
@@ -996,7 +1098,7 @@ mod tests {
             }) => {
                 assert_eq!(name, "x");
                 match value.as_ref() {
-                    ASTNode::Literal{value, ..} => {
+                    ASTNode::Literal { value, .. } => {
                         assert_eq!(*value, Value::Number(Fraction::from(1)));
                     }
                     _ => assert!(false, "Invalid ASTNode"),
@@ -1027,36 +1129,35 @@ mod tests {
                 assert_eq!(arguments.len(), 2);
                 assert_eq!(return_type, ValueType::Number);
                 match *body {
-                    ASTNode::Block{nodes, ..} => {
+                    ASTNode::Block { nodes, .. } => {
                         assert_eq!(nodes.len(), 1);
                         match &nodes[0] {
-                            ASTNode::Return { expr, .. } => {
-                                match expr.as_ref() {
-                                    ASTNode::BinaryOp {
-                                        left,
-                                        op,
-                                        right,
-                                        ..
-                                    } => {
-                                        match left.as_ref() {
-                                            ASTNode::Variable { name, value_type, .. } => {
-                                                assert_eq!(name, "x");
-                                                assert_eq!(value_type, &Some(ValueType::Number));
-                                            }
-                                            _ => panic!("Invalid ASTNode"),
+                            ASTNode::Return { expr, .. } => match expr.as_ref() {
+                                ASTNode::BinaryOp {
+                                    left, op, right, ..
+                                } => {
+                                    match left.as_ref() {
+                                        ASTNode::Variable {
+                                            name, value_type, ..
+                                        } => {
+                                            assert_eq!(name, "x");
+                                            assert_eq!(value_type, &Some(ValueType::Number));
                                         }
-                                        assert_eq!(*op, TokenKind::Plus);
-                                        match right.as_ref() {
-                                            ASTNode::Variable { name, value_type, .. } => {
-                                                assert_eq!(name, "y");
-                                                assert_eq!(value_type, &Some(ValueType::Number));
-                                            }
-                                            _ => panic!("Invalid ASTNode"),
-                                        }
+                                        _ => panic!("Invalid ASTNode"),
                                     }
-                                    _ => panic!("Invalid ASTNode"),
+                                    assert_eq!(*op, TokenKind::Plus);
+                                    match right.as_ref() {
+                                        ASTNode::Variable {
+                                            name, value_type, ..
+                                        } => {
+                                            assert_eq!(name, "y");
+                                            assert_eq!(value_type, &Some(ValueType::Number));
+                                        }
+                                        _ => panic!("Invalid ASTNode"),
+                                    }
                                 }
-                            }
+                                _ => panic!("Invalid ASTNode"),
+                            },
                             _ => panic!("Invalid ASTNode"),
                         }
                     }
@@ -1075,17 +1176,14 @@ mod tests {
         let builtins = register_builtins(&mut Env::new());
         let mut parser = Parser::new(tokens, builtins);
         let block_result = parser.parse_block();
-        
-        if let Ok(ASTNode::Block{nodes, ..}) = block_result {
+
+        if let Ok(ASTNode::Block { nodes, .. }) = block_result {
             assert_eq!(nodes.len(), 4);
             // First two nodes are variable definitions
             // Third node is the binary operation
             match &nodes[2] {
                 ASTNode::BinaryOp {
-                    left,
-                    op,
-                    right,
-                    ..
+                    left, op, right, ..
                 } => {
                     match left.as_ref() {
                         ASTNode::Variable { name, .. } => {
@@ -1105,31 +1203,26 @@ mod tests {
             }
             // Fourth node is the return statement
             match &nodes[3] {
-                ASTNode::Return{expr, ..} => {
-                    match expr.as_ref() {
-                        ASTNode::BinaryOp {
-                            left,
-                            op,
-                            right,
-                            ..
-                        } => {
-                            match left.as_ref() {
-                                ASTNode::Literal{value, ..} => {
-                                    assert_eq!(value, &Value::Number(Fraction::from(1)));
-                                }
-                                _ => panic!("Invalid ASTNode"),
+                ASTNode::Return { expr, .. } => match expr.as_ref() {
+                    ASTNode::BinaryOp {
+                        left, op, right, ..
+                    } => {
+                        match left.as_ref() {
+                            ASTNode::Literal { value, .. } => {
+                                assert_eq!(value, &Value::Number(Fraction::from(1)));
                             }
-                            assert_eq!(*op, TokenKind::Minus);
-                            match right.as_ref() {
-                                ASTNode::Literal{value, ..} => {
-                                    assert_eq!(value, &Value::Number(Fraction::from(1)));
-                                }
-                                _ => panic!("Invalid ASTNode"),
-                            }
+                            _ => panic!("Invalid ASTNode"),
                         }
-                        _ => panic!("Invalid ASTNode"),
+                        assert_eq!(*op, TokenKind::Minus);
+                        match right.as_ref() {
+                            ASTNode::Literal { value, .. } => {
+                                assert_eq!(value, &Value::Number(Fraction::from(1)));
+                            }
+                            _ => panic!("Invalid ASTNode"),
+                        }
                     }
-                }
+                    _ => panic!("Invalid ASTNode"),
+                },
                 _ => panic!("Invalid ASTNode"),
             }
         } else {
@@ -1156,7 +1249,7 @@ mod tests {
             } => {
                 assert_eq!(name, "x");
                 match value.as_ref() {
-                    ASTNode::Literal{value, ..} => {
+                    ASTNode::Literal { value, .. } => {
                         assert_eq!(*value, Value::Number(Fraction::from(1)));
                     }
                     _ => assert!(false, "Invalid ASTNode"),
@@ -1179,7 +1272,7 @@ mod tests {
             } => {
                 assert_eq!(name, "x");
                 match value.as_ref() {
-                    ASTNode::Literal{value, ..} => {
+                    ASTNode::Literal { value, .. } => {
                         assert_eq!(*value, Value::Number(Fraction::from(2)));
                     }
                     _ => assert!(false, "Invalid ASTNode"),
@@ -1195,38 +1288,37 @@ mod tests {
     #[test]
     fn test_function_call() {
         // First define the function f1 to avoid undefined function errors
-        let input = "fun f1(a: number, b: number, c: number): number { return a + b + c }\n|1, 2, 3| -> f1";
+        let input =
+            "fun f1(a: number, b: number, c: number): number { return a + b + c }\n|1, 2, 3| -> f1";
         let tokens = tokenize(&input.to_string());
         let builtins = register_builtins(&mut Env::new());
         let mut parser = Parser::new(tokens, builtins);
         let ast = parser.parse_lines().unwrap();
-        
+
         // Check the function call (second AST node)
         match &ast[1] {
             ASTNode::FunctionCall {
-                name,
-                arguments,
-                ..
+                name, arguments, ..
             } => {
                 assert_eq!(name, "f1");
                 match arguments.as_ref() {
-                    ASTNode::FunctionCallArgs{args, ..} => {
+                    ASTNode::FunctionCallArgs { args, .. } => {
                         assert_eq!(args.len(), 3);
                         // Using literals instead of variables to avoid undefined variable errors
                         match &args[0] {
-                            ASTNode::Literal{value, ..} => {
+                            ASTNode::Literal { value, .. } => {
                                 assert_eq!(value, &Value::Number(Fraction::from(1)));
                             }
                             _ => assert!(false, "Invalid ASTNode"),
                         }
                         match &args[1] {
-                            ASTNode::Literal{value, ..} => {
+                            ASTNode::Literal { value, .. } => {
                                 assert_eq!(value, &Value::Number(Fraction::from(2)));
                             }
                             _ => assert!(false, "Invalid ASTNode"),
                         }
                         match &args[2] {
-                            ASTNode::Literal{value, ..} => {
+                            ASTNode::Literal { value, .. } => {
                                 assert_eq!(value, &Value::Number(Fraction::from(3)));
                             }
                             _ => assert!(false, "Invalid ASTNode"),
@@ -1246,8 +1338,11 @@ mod tests {
         let mut parser = Parser::new(tokens, builtins);
         let asts = parser.parse_lines();
         match asts {
-            Err(ParseError{message, ..}) => {
-                assert_eq!(message, "It is an immutable variable and cannot be reassigned: \"x\"");
+            Err(ParseError { message, .. }) => {
+                assert_eq!(
+                    message,
+                    "It is an immutable variable and cannot be reassigned: \"x\""
+                );
             }
             _ => assert!(false, "Invalid ASTNode"),
         }
@@ -1272,14 +1367,12 @@ mod tests {
                     ASTNode::Block { nodes, .. } => {
                         assert_eq!(nodes.len(), 1);
                         match &nodes[0] {
-                            ASTNode::Return { expr, .. } => {
-                                match expr.as_ref() {
-                                    ASTNode::Literal { value, .. } => {
-                                        assert_eq!(value, &Value::Number(Fraction::from(42)));
-                                    }
-                                    _ => assert!(false, "Invalid ASTNode"),
+                            ASTNode::Return { expr, .. } => match expr.as_ref() {
+                                ASTNode::Literal { value, .. } => {
+                                    assert_eq!(value, &Value::Number(Fraction::from(42)));
                                 }
-                            }
+                                _ => assert!(false, "Invalid ASTNode"),
+                            },
                             _ => assert!(false, "Invalid ASTNode"),
                         }
                     }
@@ -1287,9 +1380,12 @@ mod tests {
                 }
                 assert_eq!(return_type, ValueType::Void);
             }
-            Err(ParseError{message, ..}) => {
-                assert_eq!(message, "Return type mismatch Expected type: Void, Actual type: Number");
-            },
+            Err(ParseError { message, .. }) => {
+                assert_eq!(
+                    message,
+                    "Return type mismatch Expected type: Void, Actual type: Number"
+                );
+            }
             _ => assert!(false, "Invalid ASTNode"),
         }
     }
@@ -1301,13 +1397,11 @@ mod tests {
         let mut parser = Parser::new(tokens, builtins);
         match parser.parse() {
             Ok(ASTNode::FunctionCall {
-                name,
-                arguments,
-                ..
+                name, arguments, ..
             }) => {
                 assert_eq!(name, "func");
                 match *arguments {
-                    ASTNode::FunctionCallArgs{args, ..} => {
+                    ASTNode::FunctionCallArgs { args, .. } => {
                         assert_eq!(args.len(), 0);
                     }
                     _ => assert!(false, "Invalid ASTNode"),
@@ -1334,7 +1428,7 @@ mod tests {
         let mut parser = Parser::new(tokens, builtins);
 
         match &parser.parse_lines().unwrap()[0] {
-            ASTNode::Block{nodes: block, ..} => {
+            ASTNode::Block { nodes: block, .. } => {
                 assert_eq!(block.len(), 3);
                 match &block[0] {
                     ASTNode::Assign {
@@ -1347,7 +1441,10 @@ mod tests {
                     } => {
                         assert_eq!(name, "x");
                         match value.as_ref() {
-                            ASTNode::Literal{value: Value::Number(value), ..} => {
+                            ASTNode::Literal {
+                                value: Value::Number(value),
+                                ..
+                            } => {
                                 assert_eq!(value, &Fraction::from(10));
                             }
                             _ => assert!(false, "Invalid ASTNode"),
@@ -1359,7 +1456,9 @@ mod tests {
                     _ => assert!(false, "Invalid ASTNode"),
                 }
                 match &block[1] {
-                    ASTNode::Block{nodes: inner_block, ..} => {
+                    ASTNode::Block {
+                        nodes: inner_block, ..
+                    } => {
                         assert_eq!(inner_block.len(), 1);
                         match &inner_block[0] {
                             ASTNode::Assign {
@@ -1372,7 +1471,10 @@ mod tests {
                             } => {
                                 assert_eq!(name, "y");
                                 match value.as_ref() {
-                                    ASTNode::Literal{value: Value::Number(value), ..} => {
+                                    ASTNode::Literal {
+                                        value: Value::Number(value),
+                                        ..
+                                    } => {
                                         assert_eq!(value, &Fraction::from(20));
                                     }
                                     _ => assert!(false, "Invalid ASTNode"),
@@ -1387,36 +1489,32 @@ mod tests {
                     _ => assert!(false, "Invalid ASTNode"),
                 }
                 match &block[2] {
-                    ASTNode::Return{expr: value, ..} => {
-                        match &**value {
-                            ASTNode::BinaryOp {
-                                left,
-                                op,
-                                right,
-                                ..
-                            } => {
-                                match left.as_ref() {
-                                    ASTNode::Variable {
-                                        name,
-                                        value_type,
-                                        ..
-                                    } => {
-                                        assert_eq!(name, "x");
-                                        assert_eq!(*value_type, Some(ValueType::Number));
-                                    }
-                                    _ => assert!(false, "Invalid ASTNode"),
+                    ASTNode::Return { expr: value, .. } => match &**value {
+                        ASTNode::BinaryOp {
+                            left, op, right, ..
+                        } => {
+                            match left.as_ref() {
+                                ASTNode::Variable {
+                                    name, value_type, ..
+                                } => {
+                                    assert_eq!(name, "x");
+                                    assert_eq!(*value_type, Some(ValueType::Number));
                                 }
-                                match right.as_ref() {
-                                    ASTNode::Literal{value: Value::Number(value), ..} => {
-                                        assert_eq!(value, &Fraction::from(1));
-                                    }
-                                    _ => assert!(false, "Invalid ASTNode"),
-                                }
-                                assert_eq!(*op, TokenKind::Plus);
+                                _ => assert!(false, "Invalid ASTNode"),
                             }
-                            _ => assert!(false, "Invalid ASTNode"),
+                            match right.as_ref() {
+                                ASTNode::Literal {
+                                    value: Value::Number(value),
+                                    ..
+                                } => {
+                                    assert_eq!(value, &Fraction::from(1));
+                                }
+                                _ => assert!(false, "Invalid ASTNode"),
+                            }
+                            assert_eq!(*op, TokenKind::Plus);
                         }
-                    }
+                        _ => assert!(false, "Invalid ASTNode"),
+                    },
                     _ => assert!(false, "Invalid ASTNode"),
                 }
             }
@@ -1451,7 +1549,10 @@ mod tests {
         let builtins = register_builtins(&mut Env::new());
         let mut parser = Parser::new(tokens, builtins);
         match parser.parse() {
-            Ok(ASTNode::Literal{value: Value::List(values), ..}) => {
+            Ok(ASTNode::Literal {
+                value: Value::List(values),
+                ..
+            }) => {
                 assert_eq!(values.len(), 3);
                 assert_eq!(values[0], Value::Number(Fraction::from(1)));
                 assert_eq!(values[1], Value::Number(Fraction::from(2)));
@@ -1470,20 +1571,23 @@ mod tests {
 
         match parser.parse() {
             Ok(ASTNode::BinaryOp {
-                left,
-                op,
-                right,
-                ..
+                left, op, right, ..
             }) => {
                 match *left {
-                    ASTNode::Literal{value: Value::Number(value), ..} => {
+                    ASTNode::Literal {
+                        value: Value::Number(value),
+                        ..
+                    } => {
                         assert_eq!(value, Fraction::new(26u64, 5u64));
                     }
                     _ => assert!(false, "Invalid ASTNode"),
                 }
                 assert_eq!(op, TokenKind::Plus);
                 match *right {
-                    ASTNode::Literal{value: Value::Number(value), ..} => {
+                    ASTNode::Literal {
+                        value: Value::Number(value),
+                        ..
+                    } => {
                         assert_eq!(value, Fraction::new(16u64, 5u64));
                     }
                     _ => assert!(false, "Invalid ASTNode"),
@@ -1498,29 +1602,31 @@ mod tests {
         let mut parser = Parser::new(tokens, builtins.clone());
         match parser.parse() {
             Ok(ASTNode::BinaryOp {
-                left,
-                op,
-                right,
-                ..
+                left, op, right, ..
             }) => {
                 match *left {
                     ASTNode::BinaryOp {
-                        left,
-                        op,
-                        right,
-                        ..
+                        left, op, right, ..
                     } => {
                         match *left {
-                            ASTNode::BinaryOp { left, op, right, .. } => {
+                            ASTNode::BinaryOp {
+                                left, op, right, ..
+                            } => {
                                 match *left {
-                                    ASTNode::Literal{value: Value::Number(value), ..} => {
+                                    ASTNode::Literal {
+                                        value: Value::Number(value),
+                                        ..
+                                    } => {
                                         assert_eq!(value, Fraction::from(1));
                                     }
                                     _ => assert!(false, "Invalid ASTNode"),
                                 }
                                 assert_eq!(op, TokenKind::Div);
                                 match *right {
-                                    ASTNode::Literal{value: Value::Number(value), ..} => {
+                                    ASTNode::Literal {
+                                        value: Value::Number(value),
+                                        ..
+                                    } => {
                                         assert_eq!(value, Fraction::from(3));
                                     }
                                     _ => assert!(false, "Invalid ASTNode"),
@@ -1530,7 +1636,10 @@ mod tests {
                         }
                         assert_eq!(op, TokenKind::Mul);
                         match *right {
-                            ASTNode::Literal{value: Value::Number(value), ..} => {
+                            ASTNode::Literal {
+                                value: Value::Number(value),
+                                ..
+                            } => {
                                 assert_eq!(value, Fraction::new(2u64, 1u64));
                             }
                             _ => assert!(false, "Invalid ASTNode"),
@@ -1540,7 +1649,10 @@ mod tests {
                 }
                 assert_eq!(op, TokenKind::Div);
                 match *right {
-                    ASTNode::Literal{value: Value::Number(value), ..} => {
+                    ASTNode::Literal {
+                        value: Value::Number(value),
+                        ..
+                    } => {
                         assert_eq!(value, Fraction::new(5u64, 1u64));
                     }
                     _ => assert!(false, "Invalid ASTNode"),
@@ -1558,26 +1670,25 @@ mod tests {
         let mut parser = Parser::new(tokens, builtins);
         match parser.parse() {
             Ok(ASTNode::FunctionCall {
-                name,
-                arguments,
-                ..
+                name, arguments, ..
             }) => {
                 assert_eq!(name, "f2");
                 match arguments.as_ref() {
-                    ASTNode::FunctionCallArgs{args, ..} => {
+                    ASTNode::FunctionCallArgs { args, .. } => {
                         assert_eq!(args.len(), 1);
                         match &args[0] {
                             ASTNode::FunctionCall {
-                                name,
-                                arguments,
-                                ..
+                                name, arguments, ..
                             } => {
                                 assert_eq!(name, "f1");
                                 match arguments.as_ref() {
-                                    ASTNode::FunctionCallArgs{args, ..} => {
+                                    ASTNode::FunctionCallArgs { args, .. } => {
                                         assert_eq!(args.len(), 1);
                                         match args[0] {
-                                            ASTNode::Literal{value: Value::Number(value), ..} => {
+                                            ASTNode::Literal {
+                                                value: Value::Number(value),
+                                                ..
+                                            } => {
                                                 assert_eq!(value, Fraction::from(1));
                                             }
                                             _ => assert!(false, "Invalid ASTNode"),
@@ -1617,16 +1728,12 @@ mod tests {
                 assert_eq!(value_type, ValueType::Lambda);
                 match *value {
                     ASTNode::Lambda {
-                        arguments,
-                        body,
-                        ..
+                        arguments, body, ..
                     } => {
                         assert_eq!(arguments.len(), 1);
                         match &arguments[0] {
                             ASTNode::Variable {
-                                name,
-                                value_type,
-                                ..
+                                name, value_type, ..
                             } => {
                                 assert_eq!(name, "x");
                                 assert_eq!(*value_type, Some(ValueType::Number));
@@ -1635,16 +1742,11 @@ mod tests {
                         }
                         match *body {
                             ASTNode::BinaryOp {
-                                left,
-                                op,
-                                right,
-                                ..
+                                left, op, right, ..
                             } => {
                                 match *left {
                                     ASTNode::Variable {
-                                        name,
-                                        value_type,
-                                        ..
+                                        name, value_type, ..
                                     } => {
                                         assert_eq!(name, "x");
                                         assert_eq!(value_type, Some(ValueType::Number));
@@ -1653,7 +1755,10 @@ mod tests {
                                 }
                                 assert_eq!(op, TokenKind::Plus);
                                 match right.as_ref() {
-                                    ASTNode::Literal{value: Value::Number(value), ..} => {
+                                    ASTNode::Literal {
+                                        value: Value::Number(value),
+                                        ..
+                                    } => {
                                         assert_eq!(*value, Fraction::from(1));
                                     }
                                     _ => assert!(false, "Invalid ASTNode"),
@@ -1677,35 +1782,44 @@ mod tests {
         let builtins = register_builtins(&mut Env::new());
         let mut parser = Parser::new(tokens, builtins);
         let ast = parser.parse_lines().unwrap();
-        
+
         // Check the if statement (second AST node)
         match &ast[1] {
-            ASTNode::If { condition, then, value_type, .. } => {
+            ASTNode::If {
+                condition,
+                then,
+                value_type,
+                ..
+            } => {
                 match condition.as_ref() {
                     ASTNode::Eq { left, right, .. } => {
                         match left.as_ref() {
                             ASTNode::Variable { name, .. } => assert_eq!(name, "x"),
-                            _ => assert!(false, "Invalid ASTNode")
+                            _ => assert!(false, "Invalid ASTNode"),
                         }
                         match right.as_ref() {
-                            ASTNode::Literal { value, .. } => assert_eq!(*value, Value::Number(Fraction::from(1))),
-                            _ => assert!(false, "Invalid ASTNode")
+                            ASTNode::Literal { value, .. } => {
+                                assert_eq!(*value, Value::Number(Fraction::from(1)))
+                            }
+                            _ => assert!(false, "Invalid ASTNode"),
                         }
                     }
-                    _ => assert!(false, "Invalid ASTNode")
+                    _ => assert!(false, "Invalid ASTNode"),
                 }
                 match then.as_ref() {
-                    ASTNode::Block { nodes: statements, .. } => {
-                        match &statements[0] {
-                            ASTNode::Literal { value, .. } => assert_eq!(*value, Value::Number(Fraction::from(1))),
-                            _ => assert!(false, "Invalid ASTNode")
+                    ASTNode::Block {
+                        nodes: statements, ..
+                    } => match &statements[0] {
+                        ASTNode::Literal { value, .. } => {
+                            assert_eq!(*value, Value::Number(Fraction::from(1)))
                         }
-                    }
-                    _ => assert!(false, "Invalid ASTNode")
+                        _ => assert!(false, "Invalid ASTNode"),
+                    },
+                    _ => assert!(false, "Invalid ASTNode"),
                 }
                 assert_eq!(ValueType::Number, value_type.clone());
             }
-            _ => assert!(false, "Invalid ASTNode")
+            _ => assert!(false, "Invalid ASTNode"),
         }
     }
 
@@ -1717,10 +1831,10 @@ mod tests {
         let tokens = tokenize(&input.to_string());
         let builtins = register_builtins(&mut Env::new());
         let mut parser = Parser::new(tokens, builtins);
-        
+
         // This should panic because if expressions without else are not allowed
         let _ast = parser.parse_lines().unwrap();
-        
+
         // If we get here, it means the test didn't panic as expected
         panic!("if expressions without else");
     }
@@ -1733,40 +1847,47 @@ mod tests {
         let builtins = register_builtins(&mut Env::new());
         let mut parser = Parser::new(tokens, builtins);
         let ast = parser.parse_lines().unwrap();
-        
+
         // Check the if statement (second AST node)
         match &ast[1] {
-            ASTNode::If { condition, then, value_type, .. } => {
+            ASTNode::If {
+                condition,
+                then,
+                value_type,
+                ..
+            } => {
                 match condition.as_ref() {
                     ASTNode::Eq { left, right, .. } => {
                         match left.as_ref() {
                             ASTNode::Variable { name, .. } => assert_eq!(name, "x"),
-                            _ => assert!(false, "Invalid ASTNode")
+                            _ => assert!(false, "Invalid ASTNode"),
                         }
                         match right.as_ref() {
-                            ASTNode::Literal { value, .. } => assert_eq!(*value, Value::Number(Fraction::from(1))),
-                            _ => assert!(false, "Invalid ASTNode")
+                            ASTNode::Literal { value, .. } => {
+                                assert_eq!(*value, Value::Number(Fraction::from(1)))
+                            }
+                            _ => assert!(false, "Invalid ASTNode"),
                         }
                     }
-                    _ => assert!(false, "Invalid ASTNode")
+                    _ => assert!(false, "Invalid ASTNode"),
                 }
                 match then.as_ref() {
-                    ASTNode::Block { nodes: statements, .. } => {
-                        match &statements[0] {
-                            ASTNode::Return { expr: value, .. } => {
-                                match value.as_ref() {
-                                    ASTNode::Literal { value, .. } => assert_eq!(*value, Value::Number(Fraction::from(1))),
-                                    _ => assert!(false, "Invalid ASTNode")
-                                }
+                    ASTNode::Block {
+                        nodes: statements, ..
+                    } => match &statements[0] {
+                        ASTNode::Return { expr: value, .. } => match value.as_ref() {
+                            ASTNode::Literal { value, .. } => {
+                                assert_eq!(*value, Value::Number(Fraction::from(1)))
                             }
-                            _ => assert!(false, "Invalid ASTNode")
-                        }
-                    }
-                    _ => assert!(false, "Invalid ASTNode")
+                            _ => assert!(false, "Invalid ASTNode"),
+                        },
+                        _ => assert!(false, "Invalid ASTNode"),
+                    },
+                    _ => assert!(false, "Invalid ASTNode"),
                 }
                 assert_eq!(ValueType::Number, value_type.clone());
             }
-            _ => assert!(false, "Invalid ASTNode")
+            _ => assert!(false, "Invalid ASTNode"),
         }
     }
 
@@ -1778,54 +1899,62 @@ mod tests {
         let builtins = register_builtins(&mut Env::new());
         let mut parser = Parser::new(tokens, builtins);
         let ast = parser.parse_lines().unwrap();
-        
+
         // Check the if statement (second AST node)
         match &ast[1] {
-            ASTNode::If { condition: result_condition, then: result_then, else_: result_else_, value_type: result_value_type, .. } => {
+            ASTNode::If {
+                condition: result_condition,
+                then: result_then,
+                else_: result_else_,
+                value_type: result_value_type,
+                ..
+            } => {
                 match result_condition.as_ref() {
                     ASTNode::Eq { left, right, .. } => {
                         match left.as_ref() {
                             ASTNode::Variable { name, .. } => assert_eq!(name, "x"),
-                            _ => assert!(false, "Invalid ASTNode")
+                            _ => assert!(false, "Invalid ASTNode"),
                         }
                         match right.as_ref() {
-                            ASTNode::Literal { value, .. } => assert_eq!(*value, Value::Number(Fraction::from(1))),
-                            _ => assert!(false, "Invalid ASTNode")
+                            ASTNode::Literal { value, .. } => {
+                                assert_eq!(*value, Value::Number(Fraction::from(1)))
+                            }
+                            _ => assert!(false, "Invalid ASTNode"),
                         }
                     }
-                    _ => assert!(false, "Invalid ASTNode")
+                    _ => assert!(false, "Invalid ASTNode"),
                 }
                 match result_then.as_ref() {
-                    ASTNode::Block { nodes: statements, .. } => {
-                        match &statements[0] {
-                            ASTNode::Return { expr: value, .. } => {
-                                match value.as_ref() {
-                                    ASTNode::Literal { value, .. } => assert_eq!(*value, Value::Number(Fraction::from(1))),
-                                    _ => assert!(false, "Invalid ASTNode")
-                                }
+                    ASTNode::Block {
+                        nodes: statements, ..
+                    } => match &statements[0] {
+                        ASTNode::Return { expr: value, .. } => match value.as_ref() {
+                            ASTNode::Literal { value, .. } => {
+                                assert_eq!(*value, Value::Number(Fraction::from(1)))
                             }
-                            _ => assert!(false, "Invalid ASTNode")
-                        }
-                    }
-                    _ => assert!(false, "Invalid ASTNode")
+                            _ => assert!(false, "Invalid ASTNode"),
+                        },
+                        _ => assert!(false, "Invalid ASTNode"),
+                    },
+                    _ => assert!(false, "Invalid ASTNode"),
                 }
                 match result_else_.as_ref().unwrap().as_ref() {
-                    ASTNode::Block { nodes: statements, .. } => {
-                        match &statements[0] {
-                            ASTNode::Return { expr: value, .. } => {
-                                match value.as_ref() {
-                                    ASTNode::Literal { value, .. } => assert_eq!(*value, Value::Number(Fraction::from(0))),
-                                    _ => assert!(false, "Invalid ASTNode")
-                                }
+                    ASTNode::Block {
+                        nodes: statements, ..
+                    } => match &statements[0] {
+                        ASTNode::Return { expr: value, .. } => match value.as_ref() {
+                            ASTNode::Literal { value, .. } => {
+                                assert_eq!(*value, Value::Number(Fraction::from(0)))
                             }
-                            _ => assert!(false, "Invalid ASTNode")
-                        }
-                    }
-                    _ => assert!(false, "Invalid ASTNode")
+                            _ => assert!(false, "Invalid ASTNode"),
+                        },
+                        _ => assert!(false, "Invalid ASTNode"),
+                    },
+                    _ => assert!(false, "Invalid ASTNode"),
                 }
                 assert_eq!(ValueType::Number, *result_value_type);
             }
-            _ => assert!(false, "Invalid ASTNode")
+            _ => assert!(false, "Invalid ASTNode"),
         }
     }
     #[test]
@@ -1844,97 +1973,117 @@ mod tests {
         let tokens = tokenize(&input.to_string());
         let builtins = register_builtins(&mut Env::new());
         let mut parser = Parser::new(tokens, builtins);
-        if let Ok(ASTNode::If{condition: result_condition, then: result_then, else_: result_else_, value_type: result_value_type, ..}) = parser.parse() {
+        if let Ok(ASTNode::If {
+            condition: result_condition,
+            then: result_then,
+            else_: result_else_,
+            value_type: result_value_type,
+            ..
+        }) = parser.parse()
+        {
             match result_condition.as_ref() {
                 ASTNode::Eq { left, right, .. } => {
                     match left.as_ref() {
                         ASTNode::Variable { name, .. } => assert_eq!(name, "x"),
-                        _ => assert!(false, "Invalid ASTNode")
+                        _ => assert!(false, "Invalid ASTNode"),
                     }
                     match right.as_ref() {
-                        ASTNode::Literal { value, .. } => assert_eq!(*value, Value::Number(Fraction::from(1))),
-                        _ => assert!(false, "Invalid ASTNode")
+                        ASTNode::Literal { value, .. } => {
+                            assert_eq!(*value, Value::Number(Fraction::from(1)))
+                        }
+                        _ => assert!(false, "Invalid ASTNode"),
                     }
                 }
-                _ => assert!(false, "Invalid ASTNode")
+                _ => assert!(false, "Invalid ASTNode"),
             }
             match result_then.as_ref() {
-                ASTNode::Block { nodes: statements, .. } => {
-                    match &statements[0] {
-                        ASTNode::Return { expr: value, .. } => {
-                            match value.as_ref() {
-                                ASTNode::Literal { value, .. } => assert_eq!(*value, Value::Number(Fraction::from(1))),
-                                _ => assert!(false, "Invalid ASTNode")
-                            }
+                ASTNode::Block {
+                    nodes: statements, ..
+                } => match &statements[0] {
+                    ASTNode::Return { expr: value, .. } => match value.as_ref() {
+                        ASTNode::Literal { value, .. } => {
+                            assert_eq!(*value, Value::Number(Fraction::from(1)))
                         }
-                        _ => assert!(false, "Invalid ASTNode")
-                    }
-                }
-                _ => assert!(false, "Invalid ASTNode")
+                        _ => assert!(false, "Invalid ASTNode"),
+                    },
+                    _ => assert!(false, "Invalid ASTNode"),
+                },
+                _ => assert!(false, "Invalid ASTNode"),
             }
             match result_else_.unwrap().as_ref() {
-                ASTNode::If { condition, then, else_, .. } => {
+                ASTNode::If {
+                    condition,
+                    then,
+                    else_,
+                    ..
+                } => {
                     match condition.as_ref() {
                         ASTNode::Eq { left, right, .. } => {
                             match left.as_ref() {
                                 ASTNode::Variable { name, .. } => assert_eq!(name, "x"),
-                                _ => assert!(false, "Invalid ASTNode")
+                                _ => assert!(false, "Invalid ASTNode"),
                             }
                             match right.as_ref() {
-                                ASTNode::Literal { value, .. } => assert_eq!(*value, Value::Number(Fraction::from(2))),
-                                _ => assert!(false, "Invalid ASTNode")
+                                ASTNode::Literal { value, .. } => {
+                                    assert_eq!(*value, Value::Number(Fraction::from(2)))
+                                }
+                                _ => assert!(false, "Invalid ASTNode"),
                             }
                         }
-                        _ => assert!(false, "Invalid ASTNode")
+                        _ => assert!(false, "Invalid ASTNode"),
                     }
                     match then.as_ref() {
-                        ASTNode::Block { nodes: statements, .. } => {
-                            match &statements[0] {
-                                ASTNode::Return { expr: value, .. } => {
-                                    match value.as_ref() {
-                                        ASTNode::Literal { value, .. } => assert_eq!(*value, Value::Number(Fraction::from(2))),
-                                        _ => assert!(false, "Invalid ASTNode")
-                                    }
+                        ASTNode::Block {
+                            nodes: statements, ..
+                        } => match &statements[0] {
+                            ASTNode::Return { expr: value, .. } => match value.as_ref() {
+                                ASTNode::Literal { value, .. } => {
+                                    assert_eq!(*value, Value::Number(Fraction::from(2)))
                                 }
-                                _ => assert!(false, "Invalid ASTNode")
-                            }
-                        }
-                        _ => assert!(false, "Invalid ASTNode")
+                                _ => assert!(false, "Invalid ASTNode"),
+                            },
+                            _ => assert!(false, "Invalid ASTNode"),
+                        },
+                        _ => assert!(false, "Invalid ASTNode"),
                     }
                     match else_.as_ref().unwrap().as_ref() {
-                        ASTNode::If { condition, then, .. } => {
+                        ASTNode::If {
+                            condition, then, ..
+                        } => {
                             match &condition.as_ref() {
                                 ASTNode::Eq { left, right, .. } => {
                                     match left.as_ref() {
                                         ASTNode::Variable { name, .. } => assert_eq!(name, "x"),
-                                        _ => assert!(false, "Invalid ASTNode")
+                                        _ => assert!(false, "Invalid ASTNode"),
                                     }
                                     match right.as_ref() {
-                                        ASTNode::Literal { value, .. } => assert_eq!(*value, Value::Number(Fraction::from(3))),
-                                        _ => assert!(false, "Invalid ASTNode")
+                                        ASTNode::Literal { value, .. } => {
+                                            assert_eq!(*value, Value::Number(Fraction::from(3)))
+                                        }
+                                        _ => assert!(false, "Invalid ASTNode"),
                                     }
                                 }
-                                _ => assert!(false, "Invalid ASTNode")
+                                _ => assert!(false, "Invalid ASTNode"),
                             }
                             match then.as_ref() {
-                                ASTNode::Block {nodes: statements, .. } => {
-                                    match &statements[0] {
-                                        ASTNode::Return { expr: value, .. } => {
-                                            match value.as_ref() {
-                                                ASTNode::Literal { value, .. } => assert_eq!(*value, Value::Number(Fraction::from(3))),
-                                                _ => assert!(false, "Invalid ASTNode")
-                                            }
+                                ASTNode::Block {
+                                    nodes: statements, ..
+                                } => match &statements[0] {
+                                    ASTNode::Return { expr: value, .. } => match value.as_ref() {
+                                        ASTNode::Literal { value, .. } => {
+                                            assert_eq!(*value, Value::Number(Fraction::from(3)))
                                         }
-                                        _ => assert!(false, "Invalid ASTNode")
-                                    }
-                                }
-                                _ => assert!(false, "Invalid ASTNode")
+                                        _ => assert!(false, "Invalid ASTNode"),
+                                    },
+                                    _ => assert!(false, "Invalid ASTNode"),
+                                },
+                                _ => assert!(false, "Invalid ASTNode"),
                             }
                         }
-                        _ => assert!(false, "Invalid ASTNode")
+                        _ => assert!(false, "Invalid ASTNode"),
                     }
                 }
-                _ => assert!(false, "Invalid ASTNode")
+                _ => assert!(false, "Invalid ASTNode"),
             }
             assert_eq!(ValueType::Number, result_value_type);
         };
@@ -1949,19 +2098,25 @@ mod tests {
         match parser.parse() {
             Ok(ASTNode::Eq { left, right, .. }) => {
                 match *left {
-                    ASTNode::Literal{value: Value::Number(value), ..} => {
+                    ASTNode::Literal {
+                        value: Value::Number(value),
+                        ..
+                    } => {
                         assert_eq!(value, Fraction::from(1));
                     }
-                    _ => assert!(false, "Invalid ASTNode")
+                    _ => assert!(false, "Invalid ASTNode"),
                 }
                 match *right {
-                    ASTNode::Literal{value: Value::Number(value), ..} => {
+                    ASTNode::Literal {
+                        value: Value::Number(value),
+                        ..
+                    } => {
                         assert_eq!(value, Fraction::from(1));
                     }
-                    _ => assert!(false, "Invalid ASTNode")
+                    _ => assert!(false, "Invalid ASTNode"),
                 }
             }
-            _ => assert!(false, "Invalid ASTNode")
+            _ => assert!(false, "Invalid ASTNode"),
         }
         let input = "2 > 1";
         let tokens = tokenize(&input.to_string());
@@ -1970,19 +2125,25 @@ mod tests {
         match parser.parse() {
             Ok(ASTNode::Gt { left, right, .. }) => {
                 match *left {
-                    ASTNode::Literal{value: Value::Number(value), ..} => {
+                    ASTNode::Literal {
+                        value: Value::Number(value),
+                        ..
+                    } => {
                         assert_eq!(value, Fraction::from(2));
                     }
-                    _ => assert!(false, "Invalid ASTNode")
+                    _ => assert!(false, "Invalid ASTNode"),
                 }
                 match *right {
-                    ASTNode::Literal{value: Value::Number(value), ..} => {
+                    ASTNode::Literal {
+                        value: Value::Number(value),
+                        ..
+                    } => {
                         assert_eq!(value, Fraction::from(1));
                     }
-                    _ => assert!(false, "Invalid ASTNode")
+                    _ => assert!(false, "Invalid ASTNode"),
                 }
             }
-            _ => assert!(false, "Invalid ASTNode")
+            _ => assert!(false, "Invalid ASTNode"),
         }
 
         let input = "3 >= 3";
@@ -1992,19 +2153,25 @@ mod tests {
         match parser.parse() {
             Ok(ASTNode::Gte { left, right, .. }) => {
                 match *left {
-                    ASTNode::Literal{value: Value::Number(value), ..} => {
+                    ASTNode::Literal {
+                        value: Value::Number(value),
+                        ..
+                    } => {
                         assert_eq!(value, Fraction::from(3));
                     }
-                    _ => assert!(false, "Invalid ASTNode")
+                    _ => assert!(false, "Invalid ASTNode"),
                 }
                 match *right {
-                    ASTNode::Literal{value: Value::Number(value), ..} => {
+                    ASTNode::Literal {
+                        value: Value::Number(value),
+                        ..
+                    } => {
                         assert_eq!(value, Fraction::from(3));
                     }
-                    _ => assert!(false, "Invalid ASTNode")
+                    _ => assert!(false, "Invalid ASTNode"),
                 }
             }
-            _ => assert!(false, "Invalid ASTNode")
+            _ => assert!(false, "Invalid ASTNode"),
         }
 
         let input = "1 < 2";
@@ -2014,19 +2181,25 @@ mod tests {
         match parser.parse() {
             Ok(ASTNode::Lt { left, right, .. }) => {
                 match *left {
-                    ASTNode::Literal{value: Value::Number(value), ..} => {
+                    ASTNode::Literal {
+                        value: Value::Number(value),
+                        ..
+                    } => {
                         assert_eq!(value, Fraction::from(1));
                     }
-                    _ => assert!(false, "Invalid ASTNode")
+                    _ => assert!(false, "Invalid ASTNode"),
                 }
                 match *right {
-                    ASTNode::Literal{value: Value::Number(value), ..} => {
+                    ASTNode::Literal {
+                        value: Value::Number(value),
+                        ..
+                    } => {
                         assert_eq!(value, Fraction::from(2));
                     }
-                    _ => assert!(false, "Invalid ASTNode")
+                    _ => assert!(false, "Invalid ASTNode"),
                 }
             }
-            _ => assert!(false, "Invalid ASTNode")
+            _ => assert!(false, "Invalid ASTNode"),
         }
 
         let input = "4 <= 4";
@@ -2036,19 +2209,25 @@ mod tests {
         match parser.parse() {
             Ok(ASTNode::Lte { left, right, .. }) => {
                 match *left {
-                    ASTNode::Literal{value: Value::Number(value), ..} => {
+                    ASTNode::Literal {
+                        value: Value::Number(value),
+                        ..
+                    } => {
                         assert_eq!(value, Fraction::from(4));
                     }
-                    _ => assert!(false, "Invalid ASTNode")
+                    _ => assert!(false, "Invalid ASTNode"),
                 }
                 match *right {
-                    ASTNode::Literal{value: Value::Number(value), ..} => {
+                    ASTNode::Literal {
+                        value: Value::Number(value),
+                        ..
+                    } => {
                         assert_eq!(value, Fraction::from(4));
                     }
-                    _ => assert!(false, "Invalid ASTNode")
+                    _ => assert!(false, "Invalid ASTNode"),
                 }
             }
-            _ => assert!(false, "Invalid ASTNode")
+            _ => assert!(false, "Invalid ASTNode"),
         }
     }
 
@@ -2065,21 +2244,29 @@ mod tests {
                 let x = fields.get("x").unwrap();
                 let y = fields.get("y").unwrap();
                 match x {
-                    ASTNode::StructField { value_type, is_public, .. } => {
+                    ASTNode::StructField {
+                        value_type,
+                        is_public,
+                        ..
+                    } => {
                         assert_eq!(*value_type, ValueType::Number);
                         assert_eq!(*is_public, false);
                     }
-                    _ => assert!(false, "Invalid ASTNode")
+                    _ => assert!(false, "Invalid ASTNode"),
                 }
                 match y {
-                    ASTNode::StructField { value_type, is_public, .. } => {
+                    ASTNode::StructField {
+                        value_type,
+                        is_public,
+                        ..
+                    } => {
                         assert_eq!(*value_type, ValueType::Number);
                         assert_eq!(*is_public, false);
                     }
-                    _ => assert!(false, "Invalid ASTNode")
+                    _ => assert!(false, "Invalid ASTNode"),
                 }
             }
-            _ => assert!(false, "Invalid ASTNode")
+            _ => assert!(false, "Invalid ASTNode"),
         }
     }
 
@@ -2091,7 +2278,8 @@ mod tests {
                 y: number
             }
             Point { x: 1, y: 2 }
-        "#.to_string();
+        "#
+        .to_string();
         let tokens = tokenize(&input.to_string());
         let mut parser = Parser::new(tokens, register_builtins(&mut Env::new()));
         let results = parser.parse_lines().unwrap();
@@ -2103,19 +2291,25 @@ mod tests {
                 let x = fields.get("x").unwrap();
                 let y = fields.get("y").unwrap();
                 match x {
-                    ASTNode::Literal{value: Value::Number(value), ..} => {
+                    ASTNode::Literal {
+                        value: Value::Number(value),
+                        ..
+                    } => {
                         assert_eq!(*value, Fraction::from(1));
                     }
-                    _ => assert!(false, "Invalid ASTNode")
+                    _ => assert!(false, "Invalid ASTNode"),
                 }
                 match y {
-                    ASTNode::Literal{value: Value::Number(value), ..} => {
+                    ASTNode::Literal {
+                        value: Value::Number(value),
+                        ..
+                    } => {
                         assert_eq!(*value, Fraction::from(2));
                     }
-                    _ => assert!(false, "Invalid ASTNode")
+                    _ => assert!(false, "Invalid ASTNode"),
                 }
             }
-            _ => assert!(false, "Invalid ASTNode")
+            _ => assert!(false, "Invalid ASTNode"),
         }
     }
 
@@ -2129,38 +2323,45 @@ mod tests {
           val point = Point {x: 1, y: 2}
           point.x
           point.x = 3
-        "#.to_string();
+        "#
+        .to_string();
         let tokens = tokenize(&input);
         let mut parser = Parser::new(tokens, register_builtins(&mut Env::new()));
         let results = parser.parse_lines().unwrap();
         assert_eq!(results.len(), 4);
         match &results[0] {
-            ASTNode::Public { node, .. } => {
-                match node.as_ref() {
-                    ASTNode::Struct { name, fields, .. } => {
-                        assert_eq!(name, "Point");
-                        assert_eq!(fields.len(), 2);
-                        let x = fields.get("x").unwrap();
-                        let y = fields.get("y").unwrap();
-                        match x {
-                            ASTNode::StructField { value_type, is_public, .. } => {
-                                assert_eq!(*value_type, ValueType::Number);
-                                assert_eq!(*is_public, false);
-                            }
-                            _ => assert!(false, "Invalid ASTNode")
+            ASTNode::Public { node, .. } => match node.as_ref() {
+                ASTNode::Struct { name, fields, .. } => {
+                    assert_eq!(name, "Point");
+                    assert_eq!(fields.len(), 2);
+                    let x = fields.get("x").unwrap();
+                    let y = fields.get("y").unwrap();
+                    match x {
+                        ASTNode::StructField {
+                            value_type,
+                            is_public,
+                            ..
+                        } => {
+                            assert_eq!(*value_type, ValueType::Number);
+                            assert_eq!(*is_public, false);
                         }
-                        match y {
-                            ASTNode::StructField { value_type, is_public, .. } => {
-                                assert_eq!(*value_type, ValueType::Number);
-                                assert_eq!(*is_public, false);
-                            }
-                            _ => assert!(false, "Invalid ASTNode")
-                        }
+                        _ => assert!(false, "Invalid ASTNode"),
                     }
-                    _ => assert!(false, "Invalid ASTNode")
+                    match y {
+                        ASTNode::StructField {
+                            value_type,
+                            is_public,
+                            ..
+                        } => {
+                            assert_eq!(*value_type, ValueType::Number);
+                            assert_eq!(*is_public, false);
+                        }
+                        _ => assert!(false, "Invalid ASTNode"),
+                    }
                 }
-            }
-            _ => assert!(false, "Invalid ASTNode")
+                _ => assert!(false, "Invalid ASTNode"),
+            },
+            _ => assert!(false, "Invalid ASTNode"),
         }
         match &results[1] {
             ASTNode::Assign { name, value, .. } => {
@@ -2172,63 +2373,80 @@ mod tests {
                         let x = fields.get("x").unwrap();
                         let y = fields.get("y").unwrap();
                         match x {
-                            ASTNode::Literal{value: Value::Number(value), ..} => {
+                            ASTNode::Literal {
+                                value: Value::Number(value),
+                                ..
+                            } => {
                                 assert_eq!(*value, Fraction::from(1));
                             }
-                            _ => assert!(false, "Invalid ASTNode")
+                            _ => assert!(false, "Invalid ASTNode"),
                         }
                         match y {
-                            ASTNode::Literal{value: Value::Number(value), ..} => {
+                            ASTNode::Literal {
+                                value: Value::Number(value),
+                                ..
+                            } => {
                                 assert_eq!(*value, Fraction::from(2));
                             }
-                            _ => assert!(false, "Invalid ASTNode")
+                            _ => assert!(false, "Invalid ASTNode"),
                         }
                     }
-                    _ => assert!(false, "Invalid ASTNode")
+                    _ => assert!(false, "Invalid ASTNode"),
                 }
             }
-            _ => assert!(false, "Invalid ASTNode")
+            _ => assert!(false, "Invalid ASTNode"),
         }
         match &results[2] {
-            ASTNode::StructFieldAccess { instance, field_name, .. } => {
+            ASTNode::StructFieldAccess {
+                instance,
+                field_name,
+                ..
+            } => {
                 assert_eq!(field_name, "x");
                 match instance.as_ref() {
-                    ASTNode::Variable { name, value_type, .. } => {
+                    ASTNode::Variable {
+                        name, value_type, ..
+                    } => {
                         assert_eq!(name, "point");
                         match value_type {
-                            Some(ValueType::StructInstance{name, fields}) => {
+                            Some(ValueType::StructInstance { name, fields }) => {
                                 assert_eq!(name, "Point");
                                 assert_eq!(fields.len(), 2);
                                 let x = fields.get("x").unwrap();
                                 let y = fields.get("y").unwrap();
                                 match x {
                                     ValueType::Number => {}
-                                    _ => assert!(false, "Invalid ValueType")
+                                    _ => assert!(false, "Invalid ValueType"),
                                 }
                                 match y {
                                     ValueType::Number => {}
-                                    _ => assert!(false, "Invalid ValueType")
+                                    _ => assert!(false, "Invalid ValueType"),
                                 }
                             }
-                            _ => assert!(false, "Invalid ValueType")
+                            _ => assert!(false, "Invalid ValueType"),
                         }
                     }
-                    _ => assert!(false, "Invalid ASTNode")
+                    _ => assert!(false, "Invalid ASTNode"),
                 }
             }
-            _ => assert!(false, "Invalid ASTNode")
+            _ => assert!(false, "Invalid ASTNode"),
         }
         match &results[3] {
-            ASTNode::StructFieldAssign { field_name, value, .. } => {
+            ASTNode::StructFieldAssign {
+                field_name, value, ..
+            } => {
                 assert_eq!(field_name, "x");
                 match *value.as_ref() {
-                    ASTNode::Literal{value: Value::Number(value), ..} => {
+                    ASTNode::Literal {
+                        value: Value::Number(value),
+                        ..
+                    } => {
                         assert_eq!(value, Fraction::from(3));
                     }
-                    _ => assert!(false, "Invalid ASTNode")
+                    _ => assert!(false, "Invalid ASTNode"),
                 }
             }
-            _ => assert!(false, "Invalid ASTNode")
+            _ => assert!(false, "Invalid ASTNode"),
         }
     }
 
@@ -2240,23 +2458,25 @@ mod tests {
                 self.x = self.x + dx
             }
         }
-        "#.to_string();
+        "#
+        .to_string();
         let tokens = tokenize(&input);
         let mut env = Env::new();
         let builtins = register_builtins(&mut env);
         let mut parser = Parser::new(tokens, builtins);
         let base_struct = ASTNode::Struct {
             name: "Point".into(),
-            fields: HashMap::from_iter(vec![
-                ("x".into(), ASTNode::StructField {
+            fields: HashMap::from_iter(vec![(
+                "x".into(),
+                ASTNode::StructField {
                     value_type: ValueType::Number,
                     is_public: false,
                     line: 2,
-                    column: 13
-                }),
-            ]),
+                    column: 13,
+                },
+            )]),
             line: 2,
-            column: 9
+            column: 9,
         };
         parser.register_struct("global".into(), base_struct);
         let result = parser.parse_lines();
@@ -2270,19 +2490,22 @@ mod tests {
                 ..
             } => {
                 match result_base_struct.as_ref() {
-                    ValueType::Struct{name, fields, ..} => {
+                    ValueType::Struct { name, fields, .. } => {
                         assert_eq!(name, "Point");
                         assert_eq!(fields.len(), 1);
                         let x = fields.get("x").unwrap();
                         match x {
-                            ValueType::StructField { value_type, is_public } => {
+                            ValueType::StructField {
+                                value_type,
+                                is_public,
+                            } => {
                                 assert_eq!(*value_type.as_ref(), ValueType::Number);
                                 assert_eq!(*is_public, false);
                             }
-                            _ => panic!("Invalid instance")
+                            _ => panic!("Invalid instance"),
                         }
-                    },
-                    _ => panic!("Invalid instance")
+                    }
+                    _ => panic!("Invalid instance"),
                 }
                 assert_eq!(methods.len(), 1);
                 match &methods[0] {
@@ -2298,70 +2521,89 @@ mod tests {
                         assert_eq!(arguments.len(), 2);
                         match &arguments[0] {
                             ASTNode::Variable {
-                                name,
-                                value_type,
-                                ..
+                                name, value_type, ..
                             } => {
                                 assert_eq!(name, "self");
                                 assert_eq!(*value_type, Some(ValueType::SelfType));
-                            },
-                            _ => assert!(false, "Invalid argument")
+                            }
+                            _ => assert!(false, "Invalid argument"),
                         }
                         match &arguments[1] {
                             ASTNode::Variable {
-                                name,
-                                value_type,
-                                ..
+                                name, value_type, ..
                             } => {
                                 assert_eq!(name, "dx");
                                 assert_eq!(*value_type, Some(ValueType::Number));
                             }
-                            _ => assert!(false, "Invalid argument")
+                            _ => assert!(false, "Invalid argument"),
                         }
                         match *body.clone() {
-                            ASTNode::Block{nodes, ..} => {
+                            ASTNode::Block { nodes, .. } => {
                                 assert_eq!(nodes.len(), 1);
                                 match &nodes[0] {
-                                    ASTNode::StructFieldAssign { instance, field_name, .. } => {
+                                    ASTNode::StructFieldAssign {
+                                        instance,
+                                        field_name,
+                                        ..
+                                    } => {
                                         assert_eq!(field_name, "x");
                                         match instance.as_ref() {
-                                            ASTNode::StructFieldAccess { instance, field_name, .. } => {
+                                            ASTNode::StructFieldAccess {
+                                                instance,
+                                                field_name,
+                                                ..
+                                            } => {
                                                 assert_eq!(field_name, "x");
                                                 match instance.as_ref() {
-                                                    ASTNode::Variable { name, value_type, .. } => {
+                                                    ASTNode::Variable {
+                                                        name, value_type, ..
+                                                    } => {
                                                         assert_eq!(name, "self");
                                                         match value_type {
-                                                            Some(ValueType::Struct{name, fields, ..}) => {
+                                                            Some(ValueType::Struct {
+                                                                name,
+                                                                fields,
+                                                                ..
+                                                            }) => {
                                                                 assert_eq!(name, "Point");
                                                                 assert_eq!(fields.len(), 1);
                                                                 let x = fields.get("x").unwrap();
                                                                 match x {
-                                                                    ValueType::StructField { value_type, is_public } => {
-                                                                        assert_eq!(*value_type.as_ref(), ValueType::Number);
-                                                                        assert_eq!(*is_public, false);
+                                                                    ValueType::StructField {
+                                                                        value_type,
+                                                                        is_public,
+                                                                    } => {
+                                                                        assert_eq!(
+                                                                            *value_type.as_ref(),
+                                                                            ValueType::Number
+                                                                        );
+                                                                        assert_eq!(
+                                                                            *is_public,
+                                                                            false
+                                                                        );
                                                                     }
-                                                                    _ => panic!("Invalid instance")
+                                                                    _ => panic!("Invalid instance"),
                                                                 }
                                                             }
-                                                            _ => panic!("Invalid instance")
+                                                            _ => panic!("Invalid instance"),
                                                         }
                                                     }
-                                                    _ => panic!("Invalid instance")
+                                                    _ => panic!("Invalid instance"),
                                                 }
                                             }
-                                            _ => panic!("Invalid instance")
+                                            _ => panic!("Invalid instance"),
                                         }
-                                    },
-                                    _ => panic!("Invalid node")
+                                    }
+                                    _ => panic!("Invalid node"),
                                 }
-                            },
-                            _ => panic!("Invalid body")
+                            }
+                            _ => panic!("Invalid body"),
                         }
                     }
-                    _ => panic!("Invalid method")
+                    _ => panic!("Invalid method"),
                 }
             }
-            _ => panic!("Invalid impl")
+            _ => panic!("Invalid impl"),
         }
     }
 
@@ -2382,36 +2624,41 @@ mod tests {
                 } => {
                     assert_eq!(variable, "i");
                     match *iterable {
-                        ASTNode::Literal{value: Value::List(iterable), ..} => {
+                        ASTNode::Literal {
+                            value: Value::List(iterable),
+                            ..
+                        } => {
                             for (i, value) in iterable.iter().enumerate() {
                                 assert_eq!(value, &Value::Number(Fraction::from(i as u64 + 1)));
                             }
                         }
-                        _ => panic!("Invalid iterable")
+                        _ => panic!("Invalid iterable"),
                     }
                     match *body {
                         ASTNode::Block { nodes, .. } => {
                             assert_eq!(nodes.len(), 1);
                             match &nodes[0] {
-                                ASTNode::FunctionCall { name, arguments, .. } => {
+                                ASTNode::FunctionCall {
+                                    name, arguments, ..
+                                } => {
                                     assert_eq!(name, "print");
                                     match *arguments.clone() {
-                                        ASTNode::FunctionCallArgs{args, ..} => {
+                                        ASTNode::FunctionCallArgs { args, .. } => {
                                             assert_eq!(args.len(), 1);
                                             match &args[0] {
                                                 ASTNode::Variable { name, .. } => {
                                                     assert_eq!(name, "i");
                                                 }
-                                                _ => panic!("Invalid argument")
+                                                _ => panic!("Invalid argument"),
                                             }
                                         }
-                                        _ => panic!("Invalid arguments")
+                                        _ => panic!("Invalid arguments"),
                                     }
                                 }
-                                _ => panic!("Invalid body")
+                                _ => panic!("Invalid body"),
                             }
                         }
-                        _ => panic!("Invalid body")
+                        _ => panic!("Invalid body"),
                     }
                 }
                 _ => panic!("Invalid parse result"),

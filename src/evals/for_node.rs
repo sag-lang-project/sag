@@ -1,17 +1,30 @@
 use crate::ast::ASTNode;
-use crate::value::Value;
 use crate::environment::{Env, EnvVariableType};
 use crate::evals::eval;
 use crate::evals::runtime_error::RuntimeError;
+use crate::value::Value;
 
-pub fn for_node(variable: String, iterable: Box<ASTNode>, body: Box<ASTNode>, line: usize, column: usize, env: &mut Env) -> Result<Value, RuntimeError> {
+pub fn for_node(
+    variable: String,
+    iterable: Box<ASTNode>,
+    body: Box<ASTNode>,
+    line: usize,
+    column: usize,
+    env: &mut Env,
+) -> Result<Value, RuntimeError> {
     let iterable = eval(*iterable, env)?;
     match iterable {
         Value::List(values) => {
             let scope_name = format!("for-{}", variable.clone());
             for value in values {
                 env.enter_scope(scope_name.clone());
-                let _ = env.set(variable.clone(), value.clone(), EnvVariableType::Immutable, value.value_type(), true);
+                let _ = env.set(
+                    variable.clone(),
+                    value.clone(),
+                    EnvVariableType::Immutable,
+                    value.value_type(),
+                    true,
+                );
                 let result = eval(*body.clone(), env)?;
                 if let Value::Return(_) = result {
                     env.leave_scope();
@@ -29,18 +42,22 @@ pub fn for_node(variable: String, iterable: Box<ASTNode>, body: Box<ASTNode>, li
             env.leave_scope();
             Ok(Value::Void)
         }
-        _ => Err(RuntimeError::new(format!("Unexpected iterable: {:?}", iterable).as_str(), line, column)),
+        _ => Err(RuntimeError::new(
+            format!("Unexpected iterable: {:?}", iterable).as_str(),
+            line,
+            column,
+        )),
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use fraction::Fraction;
-    use crate::tokenizer::tokenize;
-    use crate::parsers::Parser;
-    use crate::evals::evals;
     use crate::builtin::register_builtins;
+    use crate::evals::evals;
+    use crate::parsers::Parser;
+    use crate::tokenizer::tokenize;
+    use fraction::Fraction;
 
     #[test]
     fn test_for() {
@@ -57,11 +74,14 @@ mod tests {
         let mut env = Env::new();
         register_builtins(&mut env);
         let result = evals(asts, &mut env).unwrap();
-        assert_eq!(result, vec![
-            Value::Number(Fraction::from(0)),
-            Value::Void,
-            Value::Number(Fraction::from(6)),
-        ]);
+        assert_eq!(
+            result,
+            vec![
+                Value::Number(Fraction::from(0)),
+                Value::Void,
+                Value::Number(Fraction::from(6)),
+            ]
+        );
     }
 
     #[test]
@@ -82,11 +102,14 @@ mod tests {
         let mut env = Env::new();
         register_builtins(&mut env);
         let result = evals(asts, &mut env).unwrap();
-        assert_eq!(result, vec![
-            Value::Number(Fraction::from(0)),
-            Value::Void,
-            Value::Number(Fraction::from(2)),
-        ]);
+        assert_eq!(
+            result,
+            vec![
+                Value::Number(Fraction::from(0)),
+                Value::Void,
+                Value::Number(Fraction::from(2)),
+            ]
+        );
     }
     #[test]
     fn test_for_continue() {
@@ -106,10 +129,13 @@ mod tests {
         let mut env = Env::new();
         register_builtins(&mut env);
         let result = evals(asts, &mut env).unwrap();
-        assert_eq!(result, vec![
-            Value::Number(Fraction::from(0)),
-            Value::Void,
-            Value::Number(Fraction::from(2)),
-        ]);
+        assert_eq!(
+            result,
+            vec![
+                Value::Number(Fraction::from(0)),
+                Value::Void,
+                Value::Number(Fraction::from(2)),
+            ]
+        );
     }
 }
