@@ -28,12 +28,21 @@ pub enum ExportedSymbolType {
     Struct,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct FunctionInfo {
     pub arguments: Vec<ASTNode>,
     pub return_type: ValueType,
     pub body: Option<ASTNode>,
     pub builtin: Option<fn(Vec<Value>) -> Value>,
+}
+
+impl PartialEq for FunctionInfo {
+    fn eq(&self, other: &Self) -> bool {
+        self.arguments == other.arguments
+            && self.return_type == other.return_type
+            && self.body == other.body
+            && self.builtin.is_some() == other.builtin.is_some()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
