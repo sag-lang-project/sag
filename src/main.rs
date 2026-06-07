@@ -196,7 +196,7 @@ fn main() {
         Commands::Run { file_path, use_rc } => {
             let debug = false; // Set to true if you want debug mode
 
-            if file_path.ends_with(".sagc") {
+            if file_path.ends_with(".sagc") || file_path.ends_with(".sagb") {
                 if let Err(e) = run_compiled_file(&file_path) {
                     eprintln!("Error: {}", e);
                 }

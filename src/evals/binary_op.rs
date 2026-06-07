@@ -4,6 +4,7 @@ use crate::evals::eval;
 use crate::evals::runtime_error::RuntimeError;
 use crate::token::TokenKind;
 use crate::value::Value;
+use fraction::Fraction;
 
 pub fn binary_op(
     op: TokenKind,
@@ -15,17 +16,52 @@ pub fn binary_op(
 ) -> Result<Value, RuntimeError> {
     let left_val = eval(*left, env)?;
     let right_val = eval(*right, env)?;
+    let left_num = match &left_val {
+        Value::Int(v) => Some(Fraction::from(*v)),
+        Value::Number(v) => Some(v.clone()),
+        _ => None,
+    };
+    let right_num = match &right_val {
+        Value::Int(v) => Some(Fraction::from(*v)),
+        Value::Number(v) => Some(v.clone()),
+        _ => None,
+    };
 
     match (&left_val, &right_val, &op) {
         (Value::String(l), Value::String(r), TokenKind::Plus) => {
             Ok(Value::String(format!("{}{}", l, r)))
         }
         (Value::String(l), r, TokenKind::Plus) => Ok(Value::String(format!("{}{}", l, r))),
-        (Value::Number(l), Value::Number(r), TokenKind::Plus) => Ok(Value::Number(l + r)),
-        (Value::Number(l), Value::Number(r), TokenKind::Minus) => Ok(Value::Number(l - r)),
-        (Value::Number(l), Value::Number(r), TokenKind::Mul) => Ok(Value::Number(l * r)),
-        (Value::Number(l), Value::Number(r), TokenKind::Div) => Ok(Value::Number(l / r)),
-        (Value::Number(l), Value::Number(r), TokenKind::Mod) => Ok(Value::Number(l % r)),
+        (Value::Int(l), Value::Int(r), TokenKind::Plus) => Ok(Value::Int(l + r)),
+        (Value::Int(l), Value::Int(r), TokenKind::Minus) => Ok(Value::Int(l - r)),
+        (Value::Int(l), Value::Int(r), TokenKind::Mul) => Ok(Value::Int(l * r)),
+        (Value::Int(l), Value::Int(r), TokenKind::Div) => {
+            Ok(Value::from_fraction((fraction::Fraction::from(*l)) / (fraction::Fraction::from(*r))))
+        }
+        (Value::Int(l), Value::Int(r), TokenKind::Mod) => Ok(Value::Int(l % r)),
+        (Value::Int(l), Value::Int(r), TokenKind::Pow) if *r >= 0 => Ok(Value::Int(l.wrapping_pow(*r as u32))),
+        (Value::Int(l), Value::Int(r), TokenKind::And) => Ok(Value::Int(l & r)),
+        (Value::Int(l), Value::Int(r), TokenKind::Or) => Ok(Value::Int(l | r)),
+        (Value::Int(l), Value::Int(r), TokenKind::Xor) => Ok(Value::Int(l ^ r)),
+        _ if left_num.is_some() && right_num.is_some() && matches!(op, TokenKind::Plus) => {
+            Ok(Value::from_fraction(left_num.unwrap() + right_num.unwrap()))
+        }
+        _ if left_num.is_some() && right_num.is_some() && matches!(op, TokenKind::Minus) => {
+            Ok(Value::from_fraction(left_num.unwrap() - right_num.unwrap()))
+        }
+        _ if left_num.is_some() && right_num.is_some() && matches!(op, TokenKind::Mul) => {
+            Ok(Value::from_fraction(left_num.unwrap() * right_num.unwrap()))
+        }
+        _ if left_num.is_some() && right_num.is_some() && matches!(op, TokenKind::Div) => {
+            Ok(Value::from_fraction(left_num.unwrap() / right_num.unwrap()))
+        }
+        _ if left_num.is_some() && right_num.is_some() && matches!(op, TokenKind::Mod) => {
+            Ok(Value::from_fraction(left_num.unwrap() % right_num.unwrap()))
+        }
+        (Value::Number(l), Value::Number(r), TokenKind::Minus) => Ok(Value::from_fraction(l - r)),
+        (Value::Number(l), Value::Number(r), TokenKind::Mul) => Ok(Value::from_fraction(l * r)),
+        (Value::Number(l), Value::Number(r), TokenKind::Div) => Ok(Value::from_fraction(l / r)),
+        (Value::Number(l), Value::Number(r), TokenKind::Mod) => Ok(Value::from_fraction(l % r)),
         (Value::Number(l), Value::Number(r), TokenKind::Pow) => {
             let a = l.numer().unwrap();
             let b = l.denom().unwrap();
@@ -36,24 +72,24 @@ pub fn binary_op(
             if raw_denom == 0 {
                 return Err(RuntimeError::new("Division by zero", line, column));
             }
-            Ok(Value::Number((raw_numer, raw_denom).into()))
+            Ok(Value::from_fraction((raw_numer, raw_denom).into()))
         }
         (Value::Bool(l), Value::Bool(r), TokenKind::And) => Ok(Value::Bool(*l && *r)),
         (Value::Bool(l), Value::Bool(r), TokenKind::Or) => Ok(Value::Bool(*l || *r)),
         (Value::Bool(l), Value::Bool(r), TokenKind::Xor) => Ok(Value::Bool(*l && !*r || !*l && *r)),
-        (Value::Number(l), Value::Number(r), TokenKind::And) => Ok(Value::Number(
+        (Value::Number(l), Value::Number(r), TokenKind::And) => Ok(Value::from_fraction(
             (
                 l.numer().unwrap() & r.numer().unwrap(),
                 l.denom().unwrap() & r.denom().unwrap(),
             )
-                .into(),
+            .into(),
         )),
-        (Value::Number(l), Value::Number(r), TokenKind::Or) => Ok(Value::Number(
+        (Value::Number(l), Value::Number(r), TokenKind::Or) => Ok(Value::from_fraction(
             (
                 l.numer().unwrap() | r.numer().unwrap(),
                 l.denom().unwrap() | r.denom().unwrap(),
             )
-                .into(),
+            .into(),
         )),
         (Value::Number(l), Value::Number(r), TokenKind::Xor) => {
             // 分母を揃えて計算
@@ -74,7 +110,7 @@ pub fn binary_op(
             if raw_denom == 0 {
                 return Err(RuntimeError::new("Division by zero", line, column));
             }
-            Ok(Value::Number((raw_numer, raw_denom).into()))
+            Ok(Value::from_fraction((raw_numer, raw_denom).into()))
         }
         _ => Err(RuntimeError::new(
             format!(

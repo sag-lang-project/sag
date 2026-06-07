@@ -3,6 +3,8 @@ use std::fs;
 
 use fraction::Fraction;
 
+mod binary;
+
 use crate::ast::ASTNode;
 use crate::builtin::register_builtins;
 use crate::environment::Env;
@@ -11,10 +13,10 @@ use crate::token::TokenKind;
 use crate::tokenizer::tokenize;
 use crate::value::Value;
 
-const MAGIC: &str = "SAGC1";
+const MAGIC_TEXT: &str = "SAGC1";
 
 #[derive(Debug, Clone)]
-enum Instr {
+pub(super) enum Instr {
     PushNum(Fraction),
     PushString(String),
     PushBool(bool),
@@ -61,13 +63,13 @@ enum Instr {
 }
 
 #[derive(Debug, Clone)]
-struct CompiledFunction {
+pub(super) struct CompiledFunction {
     params: Vec<String>,
     code: Vec<Instr>,
 }
 
 #[derive(Debug, Clone)]
-struct Program {
+pub(super) struct Program {
     entry: Vec<Instr>,
     functions: HashMap<String, CompiledFunction>,
 }
@@ -105,13 +107,25 @@ pub fn compile_file(input_path: &str, output_path: Option<&str>) -> Result<Strin
     let output_path = output_path
         .map(|s| s.to_string())
         .unwrap_or_else(|| format!("{}.sagc", input_path));
-    fs::write(&output_path, serialize_program(&program)).map_err(|e| e.to_string())?;
+    let output = if output_path.ends_with(".sagb") {
+        binary::serialize_program_binary(&binary::lower_program(&program)?)
+    } else {
+        serialize_program_text(&program).into_bytes()
+    };
+    fs::write(&output_path, output).map_err(|e| e.to_string())?;
     Ok(output_path)
 }
 
 pub fn run_compiled_file(path: &str) -> Result<(), String> {
-    let source = fs::read_to_string(path).map_err(|e| e.to_string())?;
-    let program = parse_program(&source)?;
+    let bytes = fs::read(path).map_err(|e| e.to_string())?;
+    let program = if binary::is_binary_format(&bytes) {
+        let program = binary::parse_program_binary(&bytes)?;
+        let mut vm = binary::BinaryVm::new(program);
+        return vm.run();
+    } else {
+        let source = String::from_utf8(bytes).map_err(|e| e.to_string())?;
+        parse_program_text(&source)?
+    };
     let mut vm = Vm::new(program);
     vm.run()
 }
@@ -347,9 +361,9 @@ fn compile_literal(value: &Value) -> Result<Vec<Instr>, String> {
     }
 }
 
-fn serialize_program(program: &Program) -> String {
+fn serialize_program_text(program: &Program) -> String {
     let mut out = String::new();
-    out.push_str(MAGIC);
+    out.push_str(MAGIC_TEXT);
     out.push('\n');
     out.push_str("ENTRY\n");
     for instr in &program.entry {
@@ -419,9 +433,9 @@ fn serialize_instr(instr: &Instr, out: &mut String) {
     }
 }
 
-fn parse_program(source: &str) -> Result<Program, String> {
+fn parse_program_text(source: &str) -> Result<Program, String> {
     let mut lines = source.lines();
-    if lines.next() != Some(MAGIC) {
+    if lines.next() != Some(MAGIC_TEXT) {
         return Err("invalid compiled file magic".into());
     }
 
@@ -673,7 +687,7 @@ impl Vm {
 
         while ip < code.len() {
             match &code[ip] {
-                Instr::PushNum(n) => stack.push(Value::Number(n.clone())),
+                Instr::PushNum(n) => stack.push(Value::from_fraction(n.clone())),
                 Instr::PushString(s) => stack.push(Value::String(s.clone())),
                 Instr::PushBool(b) => stack.push(Value::Bool(*b)),
                 Instr::PushVoid => stack.push(Value::Void),
@@ -769,7 +783,8 @@ impl Vm {
                 Instr::Neg => {
                     let value = stack.pop().ok_or_else(|| "stack underflow".to_string())?;
                     match value {
-                        Value::Number(n) => stack.push(Value::Number(-n)),
+                        Value::Int(n) => stack.push(Value::Int(-n)),
+                        Value::Number(n) => stack.push(Value::from_fraction(-n)),
                         _ => return Err("NEG expects number".into()),
                     }
                 }
@@ -879,8 +894,8 @@ impl Vm {
                     return Err("len() takes exactly one argument".into());
                 }
                 match &args[0] {
-                    Value::List(values) => Ok(Value::Number(Fraction::from(values.len()))),
-                    Value::String(s) => Ok(Value::Number(Fraction::from(s.len()))),
+                    Value::List(values) => Ok(Value::Int(values.len() as i64)),
+                    Value::String(s) => Ok(Value::Int(s.len() as i64)),
                     _ => Err("len() requires list or string".into()),
                 }
             }
@@ -916,23 +931,32 @@ fn collect_labels(code: &[Instr]) -> HashMap<String, usize> {
     labels
 }
 
-fn pop2(stack: &mut Vec<Value>) -> Result<(Value, Value), String> {
+pub(super) fn pop2(stack: &mut Vec<Value>) -> Result<(Value, Value), String> {
     let right = stack.pop().ok_or_else(|| "stack underflow".to_string())?;
     let left = stack.pop().ok_or_else(|| "stack underflow".to_string())?;
     Ok((left, right))
 }
 
-fn binary_op(left: Value, right: Value, op: &str) -> Result<Value, String> {
+pub(super) fn binary_op(left: Value, right: Value, op: &str) -> Result<Value, String> {
     match (left, right, op) {
-        (Value::Number(l), Value::Number(r), "add") => Ok(Value::Number(l + r)),
-        (Value::Number(l), Value::Number(r), "sub") => Ok(Value::Number(l - r)),
-        (Value::Number(l), Value::Number(r), "mul") => Ok(Value::Number(l * r)),
-        (Value::Number(l), Value::Number(r), "div") => Ok(Value::Number(l / r)),
-        (Value::Number(l), Value::Number(r), "mod") => Ok(Value::Number(l % r)),
+        (Value::Int(l), Value::Int(r), "add") => Ok(Value::Int(l + r)),
+        (Value::Int(l), Value::Int(r), "sub") => Ok(Value::Int(l - r)),
+        (Value::Int(l), Value::Int(r), "mul") => Ok(Value::Int(l * r)),
+        (Value::Int(l), Value::Int(r), "div") => Ok(Value::from_fraction(Fraction::from(l) / Fraction::from(r))),
+        (Value::Int(l), Value::Int(r), "mod") => Ok(Value::Int(l % r)),
+        (Value::Int(l), Value::Int(r), "pow") if r >= 0 => Ok(Value::Int(l.wrapping_pow(r as u32))),
+        (Value::Int(l), Value::Int(r), op) => binary_op(Value::Number(Fraction::from(l)), Value::Number(Fraction::from(r)), op),
+        (Value::Int(l), Value::Number(r), op) => binary_op(Value::Number(Fraction::from(l)), Value::Number(r), op),
+        (Value::Number(l), Value::Int(r), op) => binary_op(Value::Number(l), Value::Number(Fraction::from(r)), op),
+        (Value::Number(l), Value::Number(r), "add") => Ok(Value::from_fraction(l + r)),
+        (Value::Number(l), Value::Number(r), "sub") => Ok(Value::from_fraction(l - r)),
+        (Value::Number(l), Value::Number(r), "mul") => Ok(Value::from_fraction(l * r)),
+        (Value::Number(l), Value::Number(r), "div") => Ok(Value::from_fraction(l / r)),
+        (Value::Number(l), Value::Number(r), "mod") => Ok(Value::from_fraction(l % r)),
         (Value::Number(l), Value::Number(r), "pow") => {
             let raw_numer = l.numer().unwrap().wrapping_pow(*r.numer().unwrap() as u32);
             let raw_denom = l.denom().unwrap().wrapping_pow(*r.numer().unwrap() as u32);
-            Ok(Value::Number((raw_numer, raw_denom).into()))
+            Ok(Value::from_fraction((raw_numer, raw_denom).into()))
         }
         (Value::String(l), Value::String(r), "add") => Ok(Value::String(l + &r)),
         (Value::String(l), other, "add") => Ok(Value::String(l + &other.to_string())),
@@ -943,23 +967,35 @@ fn binary_op(left: Value, right: Value, op: &str) -> Result<Value, String> {
     }
 }
 
-fn compare_op(left: Value, right: Value, op: &str) -> Result<Value, String> {
+pub(super) fn compare_op(left: Value, right: Value, op: &str) -> Result<Value, String> {
     let result = match op {
         "eq" => left == right,
         "neq" => left != right,
         "lt" => match (&left, &right) {
+            (Value::Int(l), Value::Int(r)) => l < r,
+            (Value::Int(l), Value::Number(r)) => Fraction::from(*l) < *r,
+            (Value::Number(l), Value::Int(r)) => *l < Fraction::from(*r),
             (Value::Number(l), Value::Number(r)) => l < r,
             _ => return Err("LT expects numbers".into()),
         },
         "lte" => match (&left, &right) {
+            (Value::Int(l), Value::Int(r)) => l <= r,
+            (Value::Int(l), Value::Number(r)) => Fraction::from(*l) <= *r,
+            (Value::Number(l), Value::Int(r)) => *l <= Fraction::from(*r),
             (Value::Number(l), Value::Number(r)) => l <= r,
             _ => return Err("LTE expects numbers".into()),
         },
         "gt" => match (&left, &right) {
+            (Value::Int(l), Value::Int(r)) => l > r,
+            (Value::Int(l), Value::Number(r)) => Fraction::from(*l) > *r,
+            (Value::Number(l), Value::Int(r)) => *l > Fraction::from(*r),
             (Value::Number(l), Value::Number(r)) => l > r,
             _ => return Err("GT expects numbers".into()),
         },
         "gte" => match (&left, &right) {
+            (Value::Int(l), Value::Int(r)) => l >= r,
+            (Value::Int(l), Value::Number(r)) => Fraction::from(*l) >= *r,
+            (Value::Number(l), Value::Int(r)) => *l >= Fraction::from(*r),
             (Value::Number(l), Value::Number(r)) => l >= r,
             _ => return Err("GTE expects numbers".into()),
         },
@@ -968,18 +1004,18 @@ fn compare_op(left: Value, right: Value, op: &str) -> Result<Value, String> {
     Ok(Value::Bool(result))
 }
 
-fn builtin_range(args: Vec<Value>) -> Result<Value, String> {
+pub(super) fn builtin_range(args: Vec<Value>) -> Result<Value, String> {
     let (start, end, step) = match args.as_slice() {
-        [Value::Number(end)] => (0, *end.numer().unwrap() as i64, 1),
-        [Value::Number(start), Value::Number(end)] => (
-            *start.numer().unwrap() as i64,
-            *end.numer().unwrap() as i64,
+        [end] => (0, end.to_i64_if_integer().ok_or_else(|| "range() requires integer arguments".to_string())?, 1),
+        [start, end] => (
+            start.to_i64_if_integer().ok_or_else(|| "range() requires integer arguments".to_string())?,
+            end.to_i64_if_integer().ok_or_else(|| "range() requires integer arguments".to_string())?,
             1,
         ),
-        [Value::Number(start), Value::Number(end), Value::Number(step)] => (
-            *start.numer().unwrap() as i64,
-            *end.numer().unwrap() as i64,
-            *step.numer().unwrap() as i64,
+        [start, end, step] => (
+            start.to_i64_if_integer().ok_or_else(|| "range() requires integer arguments".to_string())?,
+            end.to_i64_if_integer().ok_or_else(|| "range() requires integer arguments".to_string())?,
+            step.to_i64_if_integer().ok_or_else(|| "range() requires integer arguments".to_string())?,
         ),
         _ => return Err("range() takes 1-3 numeric arguments".into()),
     };
@@ -992,12 +1028,12 @@ fn builtin_range(args: Vec<Value>) -> Result<Value, String> {
     let mut current = start;
     if step > 0 {
         while current < end {
-            values.push(Value::Number(Fraction::from(current)));
+            values.push(Value::Int(current));
             current += step;
         }
     } else {
         while current > end {
-            values.push(Value::Number(Fraction::from(current)));
+            values.push(Value::Int(current));
             current += step;
         }
     }

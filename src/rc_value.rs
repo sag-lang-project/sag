@@ -50,6 +50,7 @@ impl RcValue {
     /// 通常のValueからRcValueに変換する（最適化版）
     pub fn from_value(value: &Value) -> Self {
         match value {
+            Value::Int(n) => RcValue::Number(Fraction::from(*n)),
             Value::Number(n) => RcValue::Number(n.clone()),
             Value::String(s) => RcValue::new_string(s.clone()),
             Value::Bool(b) => RcValue::Bool(*b),
@@ -135,7 +136,7 @@ impl RcValue {
     /// RcValueから通常のValueに変換する（最適化版）
     pub fn to_value(&self) -> Value {
         match self {
-            RcValue::Number(n) => Value::Number(n.clone()),
+            RcValue::Number(n) => Value::from_fraction(n.clone()),
             RcValue::String(s) => Value::String(s.to_string()),
             RcValue::Bool(b) => Value::Bool(*b),
             RcValue::Void => Value::Void,

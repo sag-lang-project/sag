@@ -1,7 +1,6 @@
 use crate::environment::Env;
 use crate::environment::ValueType;
 use crate::value::Value;
-use fraction::Fraction;
 use std::collections::HashMap;
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -21,35 +20,39 @@ pub fn register_builtins(env: &mut Env) -> HashMap<(String, String), ValueType> 
             panic!("len function takes exactly one argument");
         }
         match &args[0] {
-            Value::List(l) => Value::Number(l.len().into()),
-            Value::String(s) => Value::Number(s.len().into()),
+            Value::List(l) => Value::Int(l.len() as i64),
+            Value::String(s) => Value::Int(s.len() as i64),
             _ => panic!("len function takes a list as an argument"),
         }
     });
     builtins.insert(("global".into(), "len".to_string()), ValueType::Number);
 
     env.register_builtin("range".to_string(), |args: Vec<Value>| {
-        if let [Value::Number(start), Value::Number(end)] = args.as_slice() {
-            Value::List(
-                ((*start.numer().unwrap() as i64)..(*end.numer().unwrap() as i64))
-                    .map(|x| Value::Number(Fraction::from(x)))
-                    .collect(),
-            )
-        } else if let [Value::Number(end)] = args.as_slice() {
-            Value::List(
-                (0..(*end.numer().unwrap() as i64))
-                    .map(|x| Value::Number(Fraction::from(x)))
-                    .collect(),
-            )
-        } else if let [Value::Number(start), Value::Number(end), Value::Number(step)] =
-            args.as_slice()
-        {
-            Value::List(
-                ((*start.numer().unwrap() as i64..*end.numer().unwrap() as i64)
-                    .step_by(*step.numer().unwrap() as usize))
-                .map(|x| Value::Number(Fraction::from(x)))
-                .collect(),
-            )
+        if let [start, end] = args.as_slice() {
+            if let (Some(start), Some(end)) = (start.to_i64_if_integer(), end.to_i64_if_integer()) {
+                Value::List((start..end).map(Value::Int).collect())
+            } else {
+                panic!("range function takes integer arguments")
+            }
+        } else if let [end] = args.as_slice() {
+            if let Some(end) = end.to_i64_if_integer() {
+                Value::List((0..end).map(Value::Int).collect())
+            } else {
+                panic!("range function takes integer arguments")
+            }
+        } else if let [start, end, step] = args.as_slice() {
+            if let (Some(start), Some(end), Some(step)) = (
+                start.to_i64_if_integer(),
+                end.to_i64_if_integer(),
+                step.to_i64_if_integer(),
+            ) {
+                if step <= 0 {
+                    panic!("range function step must be positive");
+                }
+                Value::List((start..end).step_by(step as usize).map(Value::Int).collect())
+            } else {
+                panic!("range function takes integer arguments")
+            }
         } else {
             panic!("range function takes 1, 2 or 3 arguments")
         }
@@ -87,35 +90,39 @@ pub fn register_builtins(env: &mut Env) -> HashMap<(String, String), ValueType> 
             panic!("len function takes exactly one argument");
         }
         match &args[0] {
-            Value::List(l) => Value::Number(l.len().into()),
-            Value::String(s) => Value::Number(s.len().into()),
+            Value::List(l) => Value::Int(l.len() as i64),
+            Value::String(s) => Value::Int(s.len() as i64),
             _ => panic!("len function takes a list as an argument"),
         }
     });
     builtins.insert(("global".into(), "len".to_string()), ValueType::Number);
 
     env.register_builtin("range".to_string(), |args: Vec<Value>| {
-        if let [Value::Number(start), Value::Number(end)] = args.as_slice() {
-            Value::List(
-                ((*start.numer().unwrap() as i64)..(*end.numer().unwrap() as i64))
-                    .map(|x| Value::Number(Fraction::from(x)))
-                    .collect(),
-            )
-        } else if let [Value::Number(end)] = args.as_slice() {
-            Value::List(
-                (0..(*end.numer().unwrap() as i64))
-                    .map(|x| Value::Number(Fraction::from(x)))
-                    .collect(),
-            )
-        } else if let [Value::Number(start), Value::Number(end), Value::Number(step)] =
-            args.as_slice()
-        {
-            Value::List(
-                ((*start.numer().unwrap() as i64..*end.numer().unwrap() as i64)
-                    .step_by(*step.numer().unwrap() as usize))
-                .map(|x| Value::Number(Fraction::from(x)))
-                .collect(),
-            )
+        if let [start, end] = args.as_slice() {
+            if let (Some(start), Some(end)) = (start.to_i64_if_integer(), end.to_i64_if_integer()) {
+                Value::List((start..end).map(Value::Int).collect())
+            } else {
+                panic!("range function takes integer arguments")
+            }
+        } else if let [end] = args.as_slice() {
+            if let Some(end) = end.to_i64_if_integer() {
+                Value::List((0..end).map(Value::Int).collect())
+            } else {
+                panic!("range function takes integer arguments")
+            }
+        } else if let [start, end, step] = args.as_slice() {
+            if let (Some(start), Some(end), Some(step)) = (
+                start.to_i64_if_integer(),
+                end.to_i64_if_integer(),
+                step.to_i64_if_integer(),
+            ) {
+                if step <= 0 {
+                    panic!("range function step must be positive");
+                }
+                Value::List((start..end).step_by(step as usize).map(Value::Int).collect())
+            } else {
+                panic!("range function takes integer arguments")
+            }
         } else {
             panic!("range function takes 1, 2 or 3 arguments")
         }

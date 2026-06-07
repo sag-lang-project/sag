@@ -147,7 +147,10 @@ cargo run -- repl --use-rc
 
 ## Compilation
 
-SAG currently compiles to a `.sagc` compiled bytecode-style file, not a native executable.
+SAG currently compiles to VM-consumable compiled files, not native executables.
+
+- `.sagc`: text compiled format
+- `.sagb`: binary compiled format
 
 Compile a program:
 
@@ -163,10 +166,17 @@ Write the compiled output to a specific path:
 cargo run -- compile your_program.sag -o out.sagc
 ```
 
+Write the binary compiled format instead:
+
+```bash
+cargo run -- compile your_program.sag -o out.sagb
+```
+
 Run a compiled file:
 
 ```bash
 cargo run -- run your_program.sag.sagc
+cargo run -- run out.sagb
 ```
 
 ## Performance Check
