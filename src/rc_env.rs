@@ -231,50 +231,28 @@ impl RcEnv {
             return Ok(());
         }
 
-        // ローカルスコープの変数をチェックして更新
-        let key = VariableKeyInfo {
-            name: name.clone(),
-            scope: latest_scope.clone(),
-        };
+        // 既存の変数があれば、現在スコープから外側へ向かって最初に見つかったものを更新
+        for scope in inner.scope_stack.iter().rev() {
+            let key = VariableKeyInfo {
+                name: name.clone(),
+                scope: scope.clone(),
+            };
 
-        if inner.variable_map.contains_key(&key) {
-            let value_info = inner.variable_map.get(&key).unwrap();
-            if value_info.variable_type == EnvVariableType::Immutable {
-                return Err("Cannot reassign to immutable variable".into());
+            if let Some(value_info) = inner.variable_map.get(&key) {
+                if value_info.variable_type == EnvVariableType::Immutable {
+                    return Err("Cannot reassign to immutable variable".into());
+                }
+
+                inner.variable_map.insert(
+                    key,
+                    RcEnvVariableValueInfo {
+                        value,
+                        variable_type,
+                        value_type,
+                    },
+                );
+                return Ok(());
             }
-
-            inner.variable_map.insert(
-                key,
-                RcEnvVariableValueInfo {
-                    value,
-                    variable_type,
-                    value_type,
-                },
-            );
-            return Ok(());
-        }
-
-        // グローバルスコープの変数をチェックして更新
-        let global_key = VariableKeyInfo {
-            name: name.clone(),
-            scope: "global".to_string(),
-        };
-
-        if inner.variable_map.contains_key(&global_key) {
-            let value_info = inner.variable_map.get(&global_key).unwrap();
-            if value_info.variable_type == EnvVariableType::Immutable {
-                return Err("Cannot reassign to immutable variable".into());
-            }
-
-            inner.variable_map.insert(
-                global_key,
-                RcEnvVariableValueInfo {
-                    value,
-                    variable_type,
-                    value_type,
-                },
-            );
-            return Ok(());
         }
 
         // どこにも存在しない場合は現在のスコープに新規追加
