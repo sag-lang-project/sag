@@ -1,19 +1,41 @@
 use crate::ast::ASTNode;
-use crate::value::Value;
 use crate::environment::{Env, EnvVariableType, ValueType};
 use crate::evals::eval;
 use crate::evals::runtime_error::RuntimeError;
+use crate::value::Value;
 
-pub fn lambda_call_node(lambda: Box<ASTNode>, arguments: Vec<ASTNode>, line: usize, column: usize, env: &mut Env) -> Result<Value, RuntimeError> {
+pub fn lambda_call_node(
+    lambda: Box<ASTNode>,
+    arguments: Vec<ASTNode>,
+    line: usize,
+    column: usize,
+    env: &mut Env,
+) -> Result<Value, RuntimeError> {
     let mut params_vec = vec![];
     let lambda = match *lambda {
-        ASTNode::Lambda { arguments, body, .. } => (arguments, body),
-        _ => return Err(RuntimeError::new(format!("Unexpected value type: {:?}", lambda).as_str(), line, column)),
+        ASTNode::Lambda {
+            arguments, body, ..
+        } => (arguments, body),
+        _ => {
+            return Err(RuntimeError::new(
+                format!("Unexpected value type: {:?}", lambda).as_str(),
+                line,
+                column,
+            ))
+        }
     };
     for arg in &lambda.0 {
         params_vec.push(match arg {
-            ASTNode::Variable { name, value_type, .. } => (name, value_type),
-            _ => return Err(RuntimeError::new(format!("illigal param: {:?}", lambda.0).as_str(), line, column)),
+            ASTNode::Variable {
+                name, value_type, ..
+            } => (name, value_type),
+            _ => {
+                return Err(RuntimeError::new(
+                    format!("illigal param: {:?}", lambda.0).as_str(),
+                    line,
+                    column,
+                ))
+            }
         });
     }
 
@@ -21,7 +43,9 @@ pub fn lambda_call_node(lambda: Box<ASTNode>, arguments: Vec<ASTNode>, line: usi
 
     for arg in arguments {
         match arg {
-            ASTNode::FunctionCallArgs{args: arguments, ..} => {
+            ASTNode::FunctionCallArgs {
+                args: arguments, ..
+            } => {
                 args_vec = arguments;
             }
             _ => {
@@ -30,7 +54,16 @@ pub fn lambda_call_node(lambda: Box<ASTNode>, arguments: Vec<ASTNode>, line: usi
         }
     }
     if args_vec.len() != lambda.0.len() {
-        return Err(RuntimeError::new(format!("does not match arguments length: expected {}, got {}", lambda.0.len(), args_vec.len()).as_str(), line, column));
+        return Err(RuntimeError::new(
+            format!(
+                "does not match arguments length: expected {}, got {}",
+                lambda.0.len(),
+                args_vec.len()
+            )
+            .as_str(),
+            line,
+            column,
+        ));
     }
 
     let mut local_env = env.clone();
@@ -61,11 +94,11 @@ pub fn lambda_call_node(lambda: Box<ASTNode>, arguments: Vec<ASTNode>, line: usi
 #[cfg(test)]
 mod tests {
     use super::*;
-    use fraction::Fraction;
-    use crate::tokenizer::tokenize;
-    use crate::parsers::Parser;
     use crate::builtin::register_builtins;
     use crate::evals::evals;
+    use crate::parsers::Parser;
+    use crate::tokenizer::tokenize;
+    use fraction::Fraction;
 
     #[test]
     fn test_lambda_expression() {

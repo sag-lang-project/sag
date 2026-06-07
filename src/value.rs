@@ -1,9 +1,9 @@
-use std::fmt;
-use std::collections::HashMap;
-use fraction::Fraction;
-use crate::environment::{ValueType, MethodInfo};
 use crate::ast::ASTNode;
 use crate::environment::Env;
+use crate::environment::{MethodInfo, ValueType};
+use fraction::Fraction;
+use std::collections::HashMap;
+use std::fmt;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Value {
@@ -21,8 +21,8 @@ pub enum Value {
     Continue,
     Struct {
         name: String,
-        fields: HashMap<String, Value>,  // field_name: value
-        methods: HashMap<String, MethodInfo>
+        fields: HashMap<String, Value>, // field_name: value
+        methods: HashMap<String, MethodInfo>,
     },
     StructInstance {
         name: String,
@@ -56,16 +56,26 @@ impl Value {
                 } else {
                     ValueType::OptionType(Box::new(v.as_ref().unwrap().value_type()))
                 }
-            },
+            }
             Value::Result(v) => {
                 if v.is_ok() {
-                    ValueType::ResultType{success: Box::new(v.as_ref().unwrap().value_type()), failure: Box::new(ValueType::Void)}
+                    ValueType::ResultType {
+                        success: Box::new(v.as_ref().unwrap().value_type()),
+                        failure: Box::new(ValueType::Void),
+                    }
                 } else {
-                    ValueType::ResultType{success: Box::new(ValueType::Void), failure: Box::new(v.as_ref().unwrap().value_type())}
+                    ValueType::ResultType {
+                        success: Box::new(ValueType::Void),
+                        failure: Box::new(v.as_ref().unwrap().value_type()),
+                    }
                 }
-            },
-            Value::Impl { base_struct, methods } => {
-                ValueType::Impl { base_struct: Box::new(base_struct.clone()), methods: methods.clone() }
+            }
+            Value::Impl {
+                base_struct,
+                methods,
+            } => ValueType::Impl {
+                base_struct: Box::new(base_struct.clone()),
+                methods: methods.clone(),
             },
             Value::StructInstance { name, fields } => {
                 let mut field_types = HashMap::new();
@@ -78,16 +88,31 @@ impl Value {
                 }
             }
             Value::StructField { value_type, .. } => value_type.clone(),
-            Value::Struct{ name, fields, methods } => {
-                let field_types = fields.iter().map(|(name, field)| {
-                    if let Value::StructField { value_type, is_public: _ } = field {
-                        (name.clone(), value_type.clone())
-                    } else {
-                        panic!("invalid struct field")
-                    }
-                }).collect::<HashMap<_,_>>();
-                ValueType::Struct{name: name.clone(), fields: field_types.clone(), methods: methods.clone()}
-            },
+            Value::Struct {
+                name,
+                fields,
+                methods,
+            } => {
+                let field_types = fields
+                    .iter()
+                    .map(|(name, field)| {
+                        if let Value::StructField {
+                            value_type,
+                            is_public: _,
+                        } = field
+                        {
+                            (name.clone(), value_type.clone())
+                        } else {
+                            panic!("invalid struct field")
+                        }
+                    })
+                    .collect::<HashMap<_, _>>();
+                ValueType::Struct {
+                    name: name.clone(),
+                    fields: field_types.clone(),
+                    methods: methods.clone(),
+                }
+            }
             Value::List(values) => {
                 if values.is_empty() {
                     ValueType::List(Box::new(ValueType::Any))
@@ -101,15 +126,15 @@ impl Value {
                     }
                     ValueType::List(Box::new(value_type))
                 }
-            },
+            }
             Value::Dict(dict) => {
                 let mut value_type = ValueType::Any;
                 for key in dict.keys() {
                     value_type = dict.get(key).unwrap().value_type();
-                    break
+                    break;
                 }
                 ValueType::Dict(Box::new(value_type))
-            },
+            }
             Value::Function => ValueType::Function,
             Value::Return(value) => {
                 if let Value::Void = **value {
@@ -117,7 +142,7 @@ impl Value {
                 } else {
                     value.value_type()
                 }
-            },
+            }
             Value::Break => ValueType::Void,
             Value::Continue => ValueType::Void,
             Value::Lambda { .. } => ValueType::Lambda,
@@ -169,7 +194,10 @@ impl fmt::Display for Value {
                 Ok(value) => write!(f, "Suc({})", value),
                 Err(value) => write!(f, "Fail({})", value),
             },
-            Value::Impl { base_struct, methods } => {
+            Value::Impl {
+                base_struct,
+                methods,
+            } => {
                 let mut result = String::new();
                 result.push_str(&format!("Impl {{\n"));
                 result.push_str(&format!("    base_struct: {:?},\n", base_struct));
@@ -213,7 +241,7 @@ impl fmt::Display for Value {
                     result.push_str(&format!("{}", value));
                 }
                 write!(f, "[{}]", result)
-            },
+            }
             Value::Dict(dict) => {
                 let mut result = String::new();
                 for (i, (key, value)) in dict.iter().enumerate() {
@@ -223,7 +251,7 @@ impl fmt::Display for Value {
                     result.push_str(&format!("{}: {}", key, value));
                 }
                 write!(f, "{{:{}:}}", result)
-            },
+            }
         }
     }
 }

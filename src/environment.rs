@@ -1,14 +1,13 @@
+use crate::ast::ASTNode;
+use crate::builtin::register_builtins;
+use crate::evals::evals;
+use crate::evals::runtime_error::RuntimeError;
+use crate::parsers::Parser;
+use crate::tokenizer::tokenize;
+use crate::value::Value;
 use std::collections::HashMap;
 use std::path::PathBuf;
-use crate::ast::ASTNode;
-use crate::value::Value;
 use wasm_bindgen::prelude::*;
-use crate::tokenizer::tokenize;
-use crate::parsers::Parser;
-use crate::evals::evals;
-use crate::builtin::register_builtins;
-use crate::evals::runtime_error::RuntimeError;
-
 
 #[wasm_bindgen]
 #[derive(Debug, Clone, PartialEq)]
@@ -26,7 +25,7 @@ pub struct Env {
 pub enum ExportedSymbolType {
     Function,
     Variable,
-    Struct
+    Struct,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -71,12 +70,28 @@ pub enum ValueType {
     Function,
     Lambda,
     Return,
-    Struct{name: String, fields: HashMap<String, ValueType>, methods: HashMap<String, MethodInfo>},
-    StructField{value_type: Box<ValueType>, is_public: bool},
-    StructInstance{name: String, fields: HashMap<String, ValueType>},
-    Impl{base_struct: Box<ValueType>, methods: HashMap<String, MethodInfo>},
+    Struct {
+        name: String,
+        fields: HashMap<String, ValueType>,
+        methods: HashMap<String, MethodInfo>,
+    },
+    StructField {
+        value_type: Box<ValueType>,
+        is_public: bool,
+    },
+    StructInstance {
+        name: String,
+        fields: HashMap<String, ValueType>,
+    },
+    Impl {
+        base_struct: Box<ValueType>,
+        methods: HashMap<String, MethodInfo>,
+    },
     OptionType(Box<ValueType>),
-    ResultType{success: Box<ValueType>, failure: Box<ValueType>},
+    ResultType {
+        success: Box<ValueType>,
+        failure: Box<ValueType>,
+    },
 }
 
 impl PartialEq for ValueType {
@@ -95,11 +110,34 @@ impl PartialEq for ValueType {
             (ValueType::Lambda, ValueType::Lambda) => true,
             (ValueType::Return, ValueType::Return) => true,
             (ValueType::Struct { name: a, .. }, ValueType::Struct { name: b, .. }) => a == b,
-            (ValueType::StructField { value_type: a, is_public: b }, ValueType::StructField { value_type: c, is_public: d }) => a == c && b == d,
-            (ValueType::StructInstance { name: a, .. }, ValueType::StructInstance { name: b, .. }) => a == b,
-            (ValueType::Impl { base_struct: a, .. }, ValueType::Impl { base_struct: b, .. }) => a == b,
+            (
+                ValueType::StructField {
+                    value_type: a,
+                    is_public: b,
+                },
+                ValueType::StructField {
+                    value_type: c,
+                    is_public: d,
+                },
+            ) => a == c && b == d,
+            (
+                ValueType::StructInstance { name: a, .. },
+                ValueType::StructInstance { name: b, .. },
+            ) => a == b,
+            (ValueType::Impl { base_struct: a, .. }, ValueType::Impl { base_struct: b, .. }) => {
+                a == b
+            }
             (ValueType::OptionType(a), ValueType::OptionType(b)) => a == b,
-            (ValueType::ResultType { success: a, failure: b }, ValueType::ResultType { success: c, failure: d }) => a == c && b == d,
+            (
+                ValueType::ResultType {
+                    success: a,
+                    failure: b,
+                },
+                ValueType::ResultType {
+                    success: c,
+                    failure: d,
+                },
+            ) => a == c && b == d,
             _ => false,
         }
     }
@@ -125,45 +163,49 @@ impl Env {
             exported_symbols: HashMap::new(),
         }
     }
-    
+
     // アクセサメソッド
     pub fn get_variable_map(&self) -> &HashMap<VariableKeyInfo, EnvVariableValueInfo> {
         &self.variable_map
     }
-    
+
     pub fn get_functions(&self) -> &HashMap<String, FunctionInfo> {
         &self.functions
     }
-    
+
     pub fn get_structs(&self) -> &HashMap<String, Value> {
         &self.structs
     }
-    
+
     pub fn get_builtins(&self) -> &HashMap<String, FunctionInfo> {
         &self.builtins
     }
-    
+
     pub fn get_scope_stack(&self) -> &Vec<String> {
         &self.scope_stack
     }
-    
+
     pub fn get_exported_symbols(&self) -> &HashMap<String, ExportedSymbolType> {
         &self.exported_symbols
     }
-    
+
     pub fn get_modules(&self) -> &HashMap<String, Env> {
         &self.modules
     }
-    
+
     pub fn set_scope_stack(&mut self, scope_stack: Vec<String>) {
         self.scope_stack = scope_stack;
     }
-    
+
     pub fn insert_module(&mut self, name: String, env: Env) {
         self.modules.insert(name, env);
     }
 
-    pub fn register_module(&mut self, module_name: &String, module_path: &String) -> Result<(), String> {
+    pub fn register_module(
+        &mut self,
+        module_name: &String,
+        module_path: &String,
+    ) -> Result<(), String> {
         if self.modules.contains_key(module_name) {
             // 登録済
             return Ok(());
@@ -172,7 +214,7 @@ impl Env {
         let file_content = if !PathBuf::from(module_path).exists() {
             let module_path = PathBuf::from(format!("./.sag_packages/{}", module_path));
             if !module_path.exists() {
-                return Err("missing package".to_string())
+                return Err("missing package".to_string());
             }
             std::fs::read_to_string(module_path).unwrap()
         } else {
@@ -205,11 +247,14 @@ impl Env {
             name: name.clone(),
             scope: "global".to_string(),
         }) {
-            self.exported_symbols.insert(name, ExportedSymbolType::Variable);
+            self.exported_symbols
+                .insert(name, ExportedSymbolType::Variable);
         } else if let Some(_) = self.get_function(&name) {
-            self.exported_symbols.insert(name, ExportedSymbolType::Function);
+            self.exported_symbols
+                .insert(name, ExportedSymbolType::Function);
         } else if let Some(_) = self.get_struct(&name) {
-            self.exported_symbols.insert(name, ExportedSymbolType::Struct);
+            self.exported_symbols
+                .insert(name, ExportedSymbolType::Struct);
         }
     }
 
@@ -220,10 +265,16 @@ impl Env {
     pub fn register_struct(&mut self, struct_value: Value) -> Result<(), RuntimeError> {
         let name = match struct_value {
             Value::Struct { ref name, .. } => name.clone(),
-            _ => { return Err(RuntimeError::new("Invalid struct value", 0, 0)); }
+            _ => {
+                return Err(RuntimeError::new("Invalid struct value", 0, 0));
+            }
         };
         if self.structs.contains_key(&name) {
-            return Err(RuntimeError::new(format!("Struct '{}' already exists", name).as_str(), 0, 0));
+            return Err(RuntimeError::new(
+                format!("Struct '{}' already exists", name).as_str(),
+                0,
+                0,
+            ));
         }
         self.structs.insert(name.clone(), struct_value.clone());
         Ok(())
@@ -235,15 +286,26 @@ impl Env {
 
     pub fn register_impl(&mut self, impl_value: Value) -> Result<(), RuntimeError> {
         match impl_value {
-            Value::Impl { base_struct, methods } => {
+            Value::Impl {
+                base_struct,
+                methods,
+            } => {
                 if let ValueType::Struct { name, .. } = base_struct {
-                    if let Some(Value::Struct { methods: struct_methods, .. }) = self.structs.get_mut(&name) {
+                    if let Some(Value::Struct {
+                        methods: struct_methods,
+                        ..
+                    }) = self.structs.get_mut(&name)
+                    {
                         for (method_name, method_info) in methods {
                             struct_methods.insert(method_name.clone(), method_info.clone());
                         }
                         Ok(())
                     } else {
-                        Err(RuntimeError::new(format!("Struct '{}' not found for Impl", name).as_str(), 0, 0))
+                        Err(RuntimeError::new(
+                            format!("Struct '{}' not found for Impl", name).as_str(),
+                            0,
+                            0,
+                        ))
                     }
                 } else {
                     Err(RuntimeError::new("Invalid base_struct in Impl", 0, 0))

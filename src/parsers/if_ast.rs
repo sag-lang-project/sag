@@ -1,62 +1,89 @@
 use crate::ast::ASTNode;
-use crate::parsers::Parser;
-use crate::token::{Token, TokenKind};
 use crate::environment::ValueType;
 use crate::parsers::parse_error::ParseError;
+use crate::parsers::Parser;
+use crate::token::{Token, TokenKind};
 
 impl Parser {
     pub fn parse_if(&mut self) -> Result<ASTNode, ParseError> {
         // if式か文か
         let mut is_statement = false;
         match self.get_current_token() {
-            Some(Token{kind: TokenKind::If, ..}) => self.consume_token(),
+            Some(Token {
+                kind: TokenKind::If,
+                ..
+            }) => self.consume_token(),
             _ => {
                 let current_token = self.get_current_token().unwrap();
-                return Err(ParseError::new("unexpected token missing if", &current_token))
+                return Err(ParseError::new(
+                    "unexpected token missing if",
+                    &current_token,
+                ));
             }
         };
         let condition = match self.get_current_token() {
-            Some(Token{kind: TokenKind::LParen, ..}) => {
+            Some(Token {
+                kind: TokenKind::LParen,
+                ..
+            }) => {
                 self.consume_token(); // Consume the left parenthesis
                 let expr = self.parse_expression(0)?;
                 // Check for and consume the right parenthesis
                 match self.get_current_token() {
-                    Some(Token{kind: TokenKind::RParen, ..}) => {
+                    Some(Token {
+                        kind: TokenKind::RParen,
+                        ..
+                    }) => {
                         self.consume_token();
                         expr
-                    },
+                    }
                     _ => {
                         let current_token = self.get_current_token().unwrap_or(Token {
                             kind: TokenKind::Eof,
                             line: self.line,
-                            column: self.pos
+                            column: self.pos,
                         });
-                        return Err(ParseError::new("unexpected token missing )", &current_token))
+                        return Err(ParseError::new(
+                            "unexpected token missing )",
+                            &current_token,
+                        ));
                     }
                 }
-            },
+            }
             _ => {
                 let current_token = self.get_current_token().unwrap_or(Token {
                     kind: TokenKind::Eof,
                     line: self.line,
-                    column: self.pos
+                    column: self.pos,
                 });
-                return Err(ParseError::new("unexpected token missing (", &current_token))
+                return Err(ParseError::new(
+                    "unexpected token missing (",
+                    &current_token,
+                ));
             }
         };
         let then = self.parse_expression(0)?;
         match self.get_current_token() {
-            Some(Token{kind: TokenKind::Eof, ..}) => {
+            Some(Token {
+                kind: TokenKind::Eof,
+                ..
+            }) => {
                 self.pos = 0;
                 self.line += 1;
-            },
+            }
             _ => {}
         };
         let else_ = match self.get_current_token() {
-            Some(Token{kind: TokenKind::Else, ..}) => {
+            Some(Token {
+                kind: TokenKind::Else,
+                ..
+            }) => {
                 self.consume_token();
                 match self.get_current_token() {
-                    Some(Token{kind: TokenKind::If, ..}) => Some(Box::new(self.parse_if()?)),
+                    Some(Token {
+                        kind: TokenKind::If,
+                        ..
+                    }) => Some(Box::new(self.parse_if()?)),
                     _ => Some(Box::new(self.parse_expression(0)?)),
                 }
             }
@@ -68,12 +95,17 @@ impl Parser {
             let mut else_type = None;
 
             match then {
-                ASTNode::Return{expr: ref value, ..} => {
+                ASTNode::Return {
+                    expr: ref value, ..
+                } => {
                     then_type = Some(self.infer_type(&value));
-                },
-                ASTNode::Block{nodes: ref statements, ..} => {
+                }
+                ASTNode::Block {
+                    nodes: ref statements,
+                    ..
+                } => {
                     for statement in statements {
-                        if let ASTNode::Return{expr: value, ..} = statement {
+                        if let ASTNode::Return { expr: value, .. } = statement {
                             is_statement = true;
                             then_type = Some(self.infer_type(&value));
                         }
@@ -83,10 +115,8 @@ impl Parser {
                         match last {
                             Some(ast_node) => {
                                 then_type = Some(self.infer_type(ast_node));
-                            },
-                            _ => {
-                                then_type = None
                             }
+                            _ => then_type = None,
                         }
                     }
                 }
@@ -95,13 +125,15 @@ impl Parser {
 
             if let Some(else_node) = &else_ {
                 match &**else_node {
-                    ASTNode::Return{expr: value, ..} => {
+                    ASTNode::Return { expr: value, .. } => {
                         is_statement = true;
                         else_type = Some(self.infer_type(&value));
-                    },
-                    ASTNode::Block{nodes: statements, ..} => {
+                    }
+                    ASTNode::Block {
+                        nodes: statements, ..
+                    } => {
                         for statement in statements {
-                            if let ASTNode::Return{expr: value, ..} = statement { 
+                            if let ASTNode::Return { expr: value, .. } = statement {
                                 else_type = Some(self.infer_type(&value));
                             }
                         }
@@ -110,10 +142,8 @@ impl Parser {
                             match last {
                                 Some(ast_node) => {
                                     else_type = Some(self.infer_type(ast_node));
-                                },
-                                _ => {
-                                    else_type = None
                                 }
+                                _ => else_type = None,
                             }
                         }
                     }
@@ -126,7 +156,7 @@ impl Parser {
                 (Some(t), None) => t,
                 (None, Some(e)) => e,
                 (None, None) => Ok(ValueType::Void),
-                _ => Err("Type mismatch in if statement".to_string())
+                _ => Err("Type mismatch in if statement".to_string()),
             }
         };
         if value_type.is_err() {
@@ -147,7 +177,7 @@ impl Parser {
             else_,
             value_type: value_type.unwrap(),
             line,
-            column
+            column,
         })
     }
 }

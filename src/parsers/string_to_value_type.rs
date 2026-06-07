@@ -1,5 +1,5 @@
-use crate::parsers::Parser;
 use crate::environment::ValueType;
+use crate::parsers::Parser;
 use crate::token::TokenKind;
 
 impl Parser {

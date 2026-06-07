@@ -19,7 +19,11 @@ impl RuntimeError {
         let error_line = lines.get(self.line - 1).unwrap_or(&"");
         format!(
             "Runtime Error: {}\n --> line {}, column {}\n | {}\n | {}^",
-            self.message, self.line, self.column, error_line, " ".repeat(self.column)
+            self.message,
+            self.line,
+            self.column,
+            error_line,
+            " ".repeat(self.column)
         )
     }
 }

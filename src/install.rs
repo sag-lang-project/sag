@@ -1,5 +1,5 @@
-use std::path::PathBuf;
 use std::fs;
+use std::path::PathBuf;
 
 fn install_local_package(source_path: PathBuf, target_dir: PathBuf) {
     let file_name = source_path.file_name().unwrap();
@@ -9,7 +9,6 @@ fn install_local_package(source_path: PathBuf, target_dir: PathBuf) {
 
     println!("Installed local package: {:?}", target_path);
 }
-
 
 fn install_remote_package(_package_name: String, _target_dir: PathBuf) {
     unimplemented!();

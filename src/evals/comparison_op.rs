@@ -1,11 +1,18 @@
 use crate::ast::ASTNode;
-use crate::value::Value;
-use crate::token::TokenKind;
 use crate::environment::Env;
 use crate::evals::eval;
 use crate::evals::runtime_error::RuntimeError;
+use crate::token::TokenKind;
+use crate::value::Value;
 
-pub fn comparison_op_node(op: TokenKind, left: Box<ASTNode>, right: Box<ASTNode>, line: usize, column: usize, env: &mut Env) -> Result<Value, RuntimeError> {
+pub fn comparison_op_node(
+    op: TokenKind,
+    left: Box<ASTNode>,
+    right: Box<ASTNode>,
+    line: usize,
+    column: usize,
+    env: &mut Env,
+) -> Result<Value, RuntimeError> {
     let left_value = eval(*left, env)?;
     let right_value = eval(*right, env)?;
     match (left_value, right_value, op) {

@@ -21,7 +21,7 @@ impl Tokenizer {
             nesting_count: 0,
         }
     }
-    
+
     // Store the current position before advancing
     pub fn store_position(&self) -> (usize, usize) {
         (self.line, self.column)
@@ -551,12 +551,20 @@ pub fn tokenize(line: &String) -> Vec<Token> {
         if is_line_break(&c) || is_semicoron(&c) {
             let (line, column) = tokenizer.store_position();
             match tokenizer.tokens.last() {
-                Some(Token {kind, ..}) => {
+                Some(Token { kind, .. }) => {
                     if kind != &TokenKind::Eof {
-                        tokenizer.tokens.push(Token{kind: TokenKind::Eof, line, column});
+                        tokenizer.tokens.push(Token {
+                            kind: TokenKind::Eof,
+                            line,
+                            column,
+                        });
                     }
                 }
-                _ => tokenizer.tokens.push(Token{kind: TokenKind::Eof, line, column})
+                _ => tokenizer.tokens.push(Token {
+                    kind: TokenKind::Eof,
+                    line,
+                    column,
+                }),
             }
             tokenizer.line += 1;
             tokenizer.pos += 1;
@@ -579,21 +587,33 @@ pub fn tokenize(line: &String) -> Vec<Token> {
         if is_digit(&c) {
             let (line, column) = tokenizer.store_position();
             let num = get_digit(&mut tokenizer);
-            tokenizer.tokens.push(Token{kind: TokenKind::Number(num), line, column});
+            tokenizer.tokens.push(Token {
+                kind: TokenKind::Number(num),
+                line,
+                column,
+            });
             continue;
         }
 
         if is_string(&c) {
             let (line, column) = tokenizer.store_position();
             let str = get_string(&mut tokenizer);
-            tokenizer.tokens.push(Token{kind: TokenKind::String(str), line, column});
+            tokenizer.tokens.push(Token {
+                kind: TokenKind::String(str),
+                line,
+                column,
+            });
             continue;
         }
 
         if is_break(&mut tokenizer) {
             let (line, column) = tokenizer.store_position();
             tokenizer.column += 5;
-            tokenizer.tokens.push(Token{kind: TokenKind::Break, line, column});
+            tokenizer.tokens.push(Token {
+                kind: TokenKind::Break,
+                line,
+                column,
+            });
             tokenizer.pos += 5;
             continue;
         }
@@ -601,7 +621,11 @@ pub fn tokenize(line: &String) -> Vec<Token> {
         if is_continue(&mut tokenizer) {
             let (line, column) = tokenizer.store_position();
             tokenizer.column += 8;
-            tokenizer.tokens.push(Token{kind: TokenKind::Continue, line, column});
+            tokenizer.tokens.push(Token {
+                kind: TokenKind::Continue,
+                line,
+                column,
+            });
             tokenizer.pos += 8;
             continue;
         }
@@ -609,7 +633,11 @@ pub fn tokenize(line: &String) -> Vec<Token> {
         if is_mutable(&mut tokenizer) {
             let (line, column) = tokenizer.store_position();
             tokenizer.column += 8;
-            tokenizer.tokens.push(Token{kind: TokenKind::Mutable, line, column});
+            tokenizer.tokens.push(Token {
+                kind: TokenKind::Mutable,
+                line,
+                column,
+            });
             tokenizer.pos += 8;
             continue;
         }
@@ -617,7 +645,11 @@ pub fn tokenize(line: &String) -> Vec<Token> {
         if is_immutable(&mut tokenizer) {
             let (line, column) = tokenizer.store_position();
             tokenizer.column += 3;
-            tokenizer.tokens.push(Token{kind: TokenKind::Immutable, line, column});
+            tokenizer.tokens.push(Token {
+                kind: TokenKind::Immutable,
+                line,
+                column,
+            });
             tokenizer.pos += 3;
             continue;
         }
@@ -639,7 +671,11 @@ pub fn tokenize(line: &String) -> Vec<Token> {
         if is_function(&mut tokenizer) {
             let (line, column) = tokenizer.store_position();
             tokenizer.column += 3;
-            tokenizer.tokens.push(Token{kind: TokenKind::Function, line, column});
+            tokenizer.tokens.push(Token {
+                kind: TokenKind::Function,
+                line,
+                column,
+            });
             tokenizer.pos += 3;
             continue;
         }
@@ -647,7 +683,11 @@ pub fn tokenize(line: &String) -> Vec<Token> {
         if is_import(&mut tokenizer) {
             let (line, column) = tokenizer.store_position();
             tokenizer.column += 7;
-            tokenizer.tokens.push(Token{kind: TokenKind::Import, line, column});
+            tokenizer.tokens.push(Token {
+                kind: TokenKind::Import,
+                line,
+                column,
+            });
             tokenizer.pos += 7;
             continue;
         }
@@ -655,7 +695,11 @@ pub fn tokenize(line: &String) -> Vec<Token> {
         if is_from(&mut tokenizer) {
             let (line, column) = tokenizer.store_position();
             tokenizer.column += 5;
-            tokenizer.tokens.push(Token{kind: TokenKind::From, line, column});
+            tokenizer.tokens.push(Token {
+                kind: TokenKind::From,
+                line,
+                column,
+            });
             tokenizer.pos += 5;
             continue;
         }
@@ -663,7 +707,11 @@ pub fn tokenize(line: &String) -> Vec<Token> {
         if is_exponent(&mut tokenizer) {
             let (line, column) = tokenizer.store_position();
             tokenizer.column += 2;
-            tokenizer.tokens.push(Token{kind: TokenKind::Pow, line, column});
+            tokenizer.tokens.push(Token {
+                kind: TokenKind::Pow,
+                line,
+                column,
+            });
             tokenizer.pos += 2;
             continue;
         }
@@ -671,7 +719,11 @@ pub fn tokenize(line: &String) -> Vec<Token> {
         if is_match(&mut tokenizer) {
             let (line, column) = tokenizer.store_position();
             tokenizer.column += 6;
-            tokenizer.tokens.push(Token{kind: TokenKind::Match, line, column});
+            tokenizer.tokens.push(Token {
+                kind: TokenKind::Match,
+                line,
+                column,
+            });
             tokenizer.pos += 6;
             continue;
         }
@@ -679,7 +731,11 @@ pub fn tokenize(line: &String) -> Vec<Token> {
         if is_return(&mut tokenizer) {
             let (line, column) = tokenizer.store_position();
             tokenizer.column += 7;
-            tokenizer.tokens.push(Token{kind: TokenKind::Return, line, column});
+            tokenizer.tokens.push(Token {
+                kind: TokenKind::Return,
+                line,
+                column,
+            });
             tokenizer.pos += 7;
             continue;
         }
@@ -687,7 +743,11 @@ pub fn tokenize(line: &String) -> Vec<Token> {
         if is_right_arrow(&mut tokenizer) {
             let (line, column) = tokenizer.store_position();
             tokenizer.column += 2;
-            tokenizer.tokens.push(Token{kind: TokenKind::RArrow, line, column});
+            tokenizer.tokens.push(Token {
+                kind: TokenKind::RArrow,
+                line,
+                column,
+            });
             tokenizer.pos += 2;
             continue;
         }
@@ -695,7 +755,11 @@ pub fn tokenize(line: &String) -> Vec<Token> {
         if is_struct(&mut tokenizer) {
             let (line, column) = tokenizer.store_position();
             tokenizer.column += 6;
-            tokenizer.tokens.push(Token{kind: TokenKind::Struct, line, column});
+            tokenizer.tokens.push(Token {
+                kind: TokenKind::Struct,
+                line,
+                column,
+            });
             tokenizer.pos += 6;
             continue;
         }
@@ -703,7 +767,11 @@ pub fn tokenize(line: &String) -> Vec<Token> {
         if is_impl(&mut tokenizer) {
             let (line, column) = tokenizer.store_position();
             tokenizer.column += 4;
-            tokenizer.tokens.push(Token{kind: TokenKind::Impl, line, column});
+            tokenizer.tokens.push(Token {
+                kind: TokenKind::Impl,
+                line,
+                column,
+            });
             tokenizer.pos += 4;
             continue;
         }
@@ -711,7 +779,11 @@ pub fn tokenize(line: &String) -> Vec<Token> {
         if is_pub(&mut tokenizer) {
             let (line, column) = tokenizer.store_position();
             tokenizer.column += 3;
-            tokenizer.tokens.push(Token{kind: TokenKind::Pub, line, column});
+            tokenizer.tokens.push(Token {
+                kind: TokenKind::Pub,
+                line,
+                column,
+            });
             tokenizer.pos += 3;
             continue;
         }
@@ -719,7 +791,11 @@ pub fn tokenize(line: &String) -> Vec<Token> {
         if is_option(&mut tokenizer) {
             let (line, column) = tokenizer.store_position();
             tokenizer.column += 6;
-            tokenizer.tokens.push(Token{kind: TokenKind::Option, line, column});
+            tokenizer.tokens.push(Token {
+                kind: TokenKind::Option,
+                line,
+                column,
+            });
             tokenizer.pos += 6;
             continue;
         }
@@ -727,7 +803,11 @@ pub fn tokenize(line: &String) -> Vec<Token> {
         if is_some(&mut tokenizer) {
             let (line, column) = tokenizer.store_position();
             tokenizer.column += 4;
-            tokenizer.tokens.push(Token{kind: TokenKind::Some, line, column});
+            tokenizer.tokens.push(Token {
+                kind: TokenKind::Some,
+                line,
+                column,
+            });
             tokenizer.pos += 4;
             continue;
         }
@@ -735,7 +815,11 @@ pub fn tokenize(line: &String) -> Vec<Token> {
         if is_none(&mut tokenizer) {
             let (line, column) = tokenizer.store_position();
             tokenizer.column += 4;
-            tokenizer.tokens.push(Token{kind: TokenKind::None, line, column});
+            tokenizer.tokens.push(Token {
+                kind: TokenKind::None,
+                line,
+                column,
+            });
             tokenizer.pos += 4;
             continue;
         }
@@ -743,7 +827,11 @@ pub fn tokenize(line: &String) -> Vec<Token> {
         if is_void(&mut tokenizer) {
             let (line, column) = tokenizer.store_position();
             tokenizer.column += 4;
-            tokenizer.tokens.push(Token{kind: TokenKind::Void, line, column});
+            tokenizer.tokens.push(Token {
+                kind: TokenKind::Void,
+                line,
+                column,
+            });
             tokenizer.pos += 4;
             continue;
         }
@@ -751,14 +839,22 @@ pub fn tokenize(line: &String) -> Vec<Token> {
         if is_and(&mut tokenizer) {
             let (line, column) = tokenizer.store_position();
             tokenizer.column += 5;
-            tokenizer.tokens.push(Token{kind: TokenKind::And, line, column});
+            tokenizer.tokens.push(Token {
+                kind: TokenKind::And,
+                line,
+                column,
+            });
             tokenizer.pos += 5;
             continue;
         }
         if is_or(&mut tokenizer) {
             let (line, column) = tokenizer.store_position();
             tokenizer.column += 4;
-            tokenizer.tokens.push(Token{kind: TokenKind::Or, line, column});
+            tokenizer.tokens.push(Token {
+                kind: TokenKind::Or,
+                line,
+                column,
+            });
             tokenizer.pos += 4;
             continue;
         }
@@ -766,7 +862,11 @@ pub fn tokenize(line: &String) -> Vec<Token> {
         if is_xor(&mut tokenizer) {
             let (line, column) = tokenizer.store_position();
             tokenizer.column += 3;
-            tokenizer.tokens.push(Token{kind: TokenKind::Xor, line, column});
+            tokenizer.tokens.push(Token {
+                kind: TokenKind::Xor,
+                line,
+                column,
+            });
             tokenizer.pos += 3;
             continue;
         }
@@ -774,7 +874,11 @@ pub fn tokenize(line: &String) -> Vec<Token> {
         if is_result(&mut tokenizer) {
             let (line, column) = tokenizer.store_position();
             tokenizer.column += 6;
-            tokenizer.tokens.push(Token{kind: TokenKind::Result, line, column});
+            tokenizer.tokens.push(Token {
+                kind: TokenKind::Result,
+                line,
+                column,
+            });
             tokenizer.pos += 6;
             continue;
         }
@@ -782,7 +886,11 @@ pub fn tokenize(line: &String) -> Vec<Token> {
         if is_success(&mut tokenizer) {
             let (line, column) = tokenizer.store_position();
             tokenizer.column += 3;
-            tokenizer.tokens.push(Token{kind: TokenKind::Success, line, column});
+            tokenizer.tokens.push(Token {
+                kind: TokenKind::Success,
+                line,
+                column,
+            });
             tokenizer.pos += 3;
             continue;
         }
@@ -790,7 +898,11 @@ pub fn tokenize(line: &String) -> Vec<Token> {
         if is_failure(&mut tokenizer) {
             let (line, column) = tokenizer.store_position();
             tokenizer.column += 4;
-            tokenizer.tokens.push(Token{kind: TokenKind::Failure, line, column});
+            tokenizer.tokens.push(Token {
+                kind: TokenKind::Failure,
+                line,
+                column,
+            });
             tokenizer.pos += 4;
             continue;
         }
@@ -798,7 +910,11 @@ pub fn tokenize(line: &String) -> Vec<Token> {
         if is_for(&mut tokenizer) {
             let (line, column) = tokenizer.store_position();
             tokenizer.column += 3;
-            tokenizer.tokens.push(Token{kind: TokenKind::For, line, column});
+            tokenizer.tokens.push(Token {
+                kind: TokenKind::For,
+                line,
+                column,
+            });
             tokenizer.pos += 3;
             continue;
         }
@@ -806,7 +922,11 @@ pub fn tokenize(line: &String) -> Vec<Token> {
         if is_in(&mut tokenizer) {
             let (line, column) = tokenizer.store_position();
             tokenizer.column += 2;
-            tokenizer.tokens.push(Token{kind: TokenKind::In, line, column});
+            tokenizer.tokens.push(Token {
+                kind: TokenKind::In,
+                line,
+                column,
+            });
             tokenizer.pos += 2;
             continue;
         }
@@ -814,7 +934,11 @@ pub fn tokenize(line: &String) -> Vec<Token> {
         if is_right_rocket(&mut tokenizer) {
             let (line, column) = tokenizer.store_position();
             tokenizer.column += 2;
-            tokenizer.tokens.push(Token{kind: TokenKind::RRocket, line, column});
+            tokenizer.tokens.push(Token {
+                kind: TokenKind::RRocket,
+                line,
+                column,
+            });
             tokenizer.pos += 2;
             continue;
         }
@@ -822,7 +946,11 @@ pub fn tokenize(line: &String) -> Vec<Token> {
         if is_if(&mut tokenizer) {
             let (line, column) = tokenizer.store_position();
             tokenizer.column += 2;
-            tokenizer.tokens.push(Token{kind: TokenKind::If, line, column});
+            tokenizer.tokens.push(Token {
+                kind: TokenKind::If,
+                line,
+                column,
+            });
             tokenizer.pos += 2;
             continue;
         }
@@ -830,7 +958,11 @@ pub fn tokenize(line: &String) -> Vec<Token> {
         if is_else(&mut tokenizer) {
             let (line, column) = tokenizer.store_position();
             tokenizer.column += 4;
-            tokenizer.tokens.push(Token{kind: TokenKind::Else, line, column});
+            tokenizer.tokens.push(Token {
+                kind: TokenKind::Else,
+                line,
+                column,
+            });
             tokenizer.pos += 4;
             continue;
         }
@@ -838,7 +970,11 @@ pub fn tokenize(line: &String) -> Vec<Token> {
         if is_eq(&mut tokenizer) {
             let (line, column) = tokenizer.store_position();
             tokenizer.column += 2;
-            tokenizer.tokens.push(Token{kind: TokenKind::Eq, line, column});
+            tokenizer.tokens.push(Token {
+                kind: TokenKind::Eq,
+                line,
+                column,
+            });
             tokenizer.pos += 2;
             continue;
         }
@@ -846,7 +982,11 @@ pub fn tokenize(line: &String) -> Vec<Token> {
         if is_lte(&mut tokenizer) {
             let (line, column) = tokenizer.store_position();
             tokenizer.column += 2;
-            tokenizer.tokens.push(Token{kind: TokenKind::Lte, line, column});
+            tokenizer.tokens.push(Token {
+                kind: TokenKind::Lte,
+                line,
+                column,
+            });
             tokenizer.pos += 2;
             continue;
         }
@@ -854,7 +994,11 @@ pub fn tokenize(line: &String) -> Vec<Token> {
         if is_lt(c) {
             let (line, column) = tokenizer.store_position();
             tokenizer.column += 1;
-            tokenizer.tokens.push(Token{kind: TokenKind::Lt, line, column});
+            tokenizer.tokens.push(Token {
+                kind: TokenKind::Lt,
+                line,
+                column,
+            });
             tokenizer.pos += 1;
             continue;
         }
@@ -862,7 +1006,11 @@ pub fn tokenize(line: &String) -> Vec<Token> {
         if is_gte(&mut tokenizer) {
             let (line, column) = tokenizer.store_position();
             tokenizer.column += 2;
-            tokenizer.tokens.push(Token{kind: TokenKind::Gte, line, column});
+            tokenizer.tokens.push(Token {
+                kind: TokenKind::Gte,
+                line,
+                column,
+            });
             tokenizer.pos += 2;
             continue;
         }
@@ -870,7 +1018,11 @@ pub fn tokenize(line: &String) -> Vec<Token> {
         if is_gt(c) {
             let (line, column) = tokenizer.store_position();
             tokenizer.column += 1;
-            tokenizer.tokens.push(Token{kind: TokenKind::Gt, line, column});
+            tokenizer.tokens.push(Token {
+                kind: TokenKind::Gt,
+                line,
+                column,
+            });
             tokenizer.pos += 1;
             continue;
         }
@@ -878,7 +1030,11 @@ pub fn tokenize(line: &String) -> Vec<Token> {
         if is_true(&mut tokenizer) {
             let (line, column) = tokenizer.store_position();
             tokenizer.column += 4;
-            tokenizer.tokens.push(Token{kind: TokenKind::True, line, column});
+            tokenizer.tokens.push(Token {
+                kind: TokenKind::True,
+                line,
+                column,
+            });
             tokenizer.pos += 4;
             continue;
         }
@@ -886,7 +1042,11 @@ pub fn tokenize(line: &String) -> Vec<Token> {
         if is_false(&mut tokenizer) {
             let (line, column) = tokenizer.store_position();
             tokenizer.column += 5;
-            tokenizer.tokens.push(Token{kind: TokenKind::False, line, column});
+            tokenizer.tokens.push(Token {
+                kind: TokenKind::False,
+                line,
+                column,
+            });
             tokenizer.pos += 5;
             continue;
         }
@@ -894,7 +1054,11 @@ pub fn tokenize(line: &String) -> Vec<Token> {
         if is_colon(&c) {
             let (line, column) = tokenizer.store_position();
             tokenizer.column += 1;
-            tokenizer.tokens.push(Token{kind: TokenKind::Colon, line, column});
+            tokenizer.tokens.push(Token {
+                kind: TokenKind::Colon,
+                line,
+                column,
+            });
             tokenizer.pos += 1;
             continue;
         }
@@ -902,7 +1066,11 @@ pub fn tokenize(line: &String) -> Vec<Token> {
         if is_comma(&c) {
             let (line, column) = tokenizer.store_position();
             tokenizer.column += 1;
-            tokenizer.tokens.push(Token{kind: TokenKind::Comma, line, column});
+            tokenizer.tokens.push(Token {
+                kind: TokenKind::Comma,
+                line,
+                column,
+            });
             tokenizer.pos += 1;
             continue;
         }
@@ -910,7 +1078,11 @@ pub fn tokenize(line: &String) -> Vec<Token> {
         if is_function_call_args(&c) {
             let (line, column) = tokenizer.store_position();
             tokenizer.column += 1;
-            tokenizer.tokens.push(Token{kind: TokenKind::Pipe, line, column});
+            tokenizer.tokens.push(Token {
+                kind: TokenKind::Pipe,
+                line,
+                column,
+            });
             tokenizer.pos += 1;
             continue;
         }
@@ -918,34 +1090,98 @@ pub fn tokenize(line: &String) -> Vec<Token> {
         let (line, column) = tokenizer.store_position();
         tokenizer.column += 1;
         match c {
-            '+' => tokenizer.tokens.push(Token{kind: TokenKind::Plus, line, column}),
-            '-' => tokenizer.tokens.push(Token{kind: TokenKind::Minus, line, column}),
-            '*' => tokenizer.tokens.push(Token{kind: TokenKind::Mul, line, column}),
-            '/' => tokenizer.tokens.push(Token{kind: TokenKind::Div, line, column}),
-            '%' => tokenizer.tokens.push(Token{kind: TokenKind::Mod, line, column}),
-            '(' => tokenizer.tokens.push(Token{kind: TokenKind::LParen, line, column}),
-            ')' => tokenizer.tokens.push(Token{kind: TokenKind::RParen, line, column}),
-            '[' => tokenizer.tokens.push(Token{kind: TokenKind::LBrancket, line, column}),
-            ']' => tokenizer.tokens.push(Token{kind: TokenKind::RBrancket, line, column}),
-            '.' => tokenizer.tokens.push(Token{kind: TokenKind::Dot, line, column}),
-            '\\' => tokenizer.tokens.push(Token{kind: TokenKind::BackSlash, line, column}),
+            '+' => tokenizer.tokens.push(Token {
+                kind: TokenKind::Plus,
+                line,
+                column,
+            }),
+            '-' => tokenizer.tokens.push(Token {
+                kind: TokenKind::Minus,
+                line,
+                column,
+            }),
+            '*' => tokenizer.tokens.push(Token {
+                kind: TokenKind::Mul,
+                line,
+                column,
+            }),
+            '/' => tokenizer.tokens.push(Token {
+                kind: TokenKind::Div,
+                line,
+                column,
+            }),
+            '%' => tokenizer.tokens.push(Token {
+                kind: TokenKind::Mod,
+                line,
+                column,
+            }),
+            '(' => tokenizer.tokens.push(Token {
+                kind: TokenKind::LParen,
+                line,
+                column,
+            }),
+            ')' => tokenizer.tokens.push(Token {
+                kind: TokenKind::RParen,
+                line,
+                column,
+            }),
+            '[' => tokenizer.tokens.push(Token {
+                kind: TokenKind::LBrancket,
+                line,
+                column,
+            }),
+            ']' => tokenizer.tokens.push(Token {
+                kind: TokenKind::RBrancket,
+                line,
+                column,
+            }),
+            '.' => tokenizer.tokens.push(Token {
+                kind: TokenKind::Dot,
+                line,
+                column,
+            }),
+            '\\' => tokenizer.tokens.push(Token {
+                kind: TokenKind::BackSlash,
+                line,
+                column,
+            }),
             '{' => {
                 tokenizer.nesting_count += 1;
-                tokenizer.tokens.push(Token{kind: TokenKind::LBrace, line, column});
+                tokenizer.tokens.push(Token {
+                    kind: TokenKind::LBrace,
+                    line,
+                    column,
+                });
             }
             '}' => {
                 tokenizer.nesting_count -= 1;
-                tokenizer.tokens.push(Token{kind: TokenKind::RBrace, line, column});
+                tokenizer.tokens.push(Token {
+                    kind: TokenKind::RBrace,
+                    line,
+                    column,
+                });
                 if tokenizer.nesting_count == 0 {
-                    tokenizer.tokens.push(Token{kind: TokenKind::Eof, line, column});
+                    tokenizer.tokens.push(Token {
+                        kind: TokenKind::Eof,
+                        line,
+                        column,
+                    });
                 }
             }
-            '=' => tokenizer.tokens.push(Token{kind: TokenKind::Equal, line, column}),
+            '=' => tokenizer.tokens.push(Token {
+                kind: TokenKind::Equal,
+                line,
+                column,
+            }),
             _ => {
                 let (line, column) = tokenizer.store_position();
                 let value = get_identifier(&mut tokenizer);
                 tokenizer.column += value.len() - 1;
-                tokenizer.tokens.push(Token{kind: TokenKind::Identifier(value), line, column});
+                tokenizer.tokens.push(Token {
+                    kind: TokenKind::Identifier(value),
+                    line,
+                    column,
+                });
                 continue;
             }
         }
@@ -953,12 +1189,20 @@ pub fn tokenize(line: &String) -> Vec<Token> {
     }
     let (line, column) = tokenizer.store_position();
     match tokenizer.tokens.last() {
-        Some(Token {kind, ..}) => {
+        Some(Token { kind, .. }) => {
             if kind != &TokenKind::Eof {
-                tokenizer.tokens.push(Token{kind: TokenKind::Eof, line, column});
+                tokenizer.tokens.push(Token {
+                    kind: TokenKind::Eof,
+                    line,
+                    column,
+                });
             }
         }
-        _ => tokenizer.tokens.push(Token{kind: TokenKind::Eof, line, column})
+        _ => tokenizer.tokens.push(Token {
+            kind: TokenKind::Eof,
+            line,
+            column,
+        }),
     }
     tokenizer.tokens
 }
@@ -980,9 +1224,12 @@ mod tests {
             TokenKind::Number(Fraction::from(4)),
             TokenKind::Mod,
             TokenKind::Number(Fraction::from(3)),
-            TokenKind::Eof
+            TokenKind::Eof,
         ];
-        for (i, token) in tokenize(&"-1 + 2 * 3/4 % 3".to_string()).into_iter().enumerate() {
+        for (i, token) in tokenize(&"-1 + 2 * 3/4 % 3".to_string())
+            .into_iter()
+            .enumerate()
+        {
             assert_eq!(token.kind, result[i]);
         }
     }
@@ -993,9 +1240,12 @@ mod tests {
             TokenKind::Identifier("x".into()),
             TokenKind::Equal,
             TokenKind::Number(Fraction::from(1)),
-            TokenKind::Eof
+            TokenKind::Eof,
         ];
-        for (i, token) in tokenize(&"val mut x = 1".to_string()).into_iter().enumerate() {
+        for (i, token) in tokenize(&"val mut x = 1".to_string())
+            .into_iter()
+            .enumerate()
+        {
             assert_eq!(token.kind, result[i]);
         }
         let result = vec![
@@ -1005,9 +1255,12 @@ mod tests {
             TokenKind::Identifier("num".into()),
             TokenKind::Equal,
             TokenKind::Number(Fraction::from(1)),
-            TokenKind::Eof
+            TokenKind::Eof,
         ];
-        for (i, token) in tokenize(&"val x: num = 1".to_string()).into_iter().enumerate() {
+        for (i, token) in tokenize(&"val x: num = 1".to_string())
+            .into_iter()
+            .enumerate()
+        {
             assert_eq!(token.kind, result[i]);
         }
     }
@@ -1024,9 +1277,12 @@ mod tests {
             TokenKind::Identifier("x".into()),
             TokenKind::Equal,
             TokenKind::Number(Fraction::from(1)),
-            TokenKind::Eof
+            TokenKind::Eof,
         ];
-        for (i, token) in tokenize(&"-1 + 2\n val x = 1".to_string()).into_iter().enumerate() {
+        for (i, token) in tokenize(&"-1 + 2\n val x = 1".to_string())
+            .into_iter()
+            .enumerate()
+        {
             assert_eq!(token.kind, result[i]);
         }
     }
@@ -1034,7 +1290,10 @@ mod tests {
     #[test]
     fn test_string() {
         let result = vec![TokenKind::String("Hello World!!".into()), TokenKind::Eof];
-        for (i, token) in tokenize(&"\"Hello World!!\"".to_string()).into_iter().enumerate() {
+        for (i, token) in tokenize(&"\"Hello World!!\"".to_string())
+            .into_iter()
+            .enumerate()
+        {
             assert_eq!(token.kind, result[i]);
         }
     }
@@ -1064,9 +1323,13 @@ mod tests {
             TokenKind::Identifier("y".into()),
             TokenKind::Eof,
             TokenKind::RBrace,
-            TokenKind::Eof
+            TokenKind::Eof,
         ];
-        for (i, token) in tokenize(&"fun foo = (x:number, y: number): number {\n return x + y \n}".to_string()).into_iter().enumerate() {
+        for (i, token) in
+            tokenize(&"fun foo = (x:number, y: number): number {\n return x + y \n}".to_string())
+                .into_iter()
+                .enumerate()
+        {
             assert_eq!(token.kind, result[i]);
         }
     }
@@ -1080,9 +1343,12 @@ mod tests {
             TokenKind::RParen,
             TokenKind::RArrow,
             TokenKind::Identifier("foo".into()),
-            TokenKind::Eof
+            TokenKind::Eof,
         ];
-        for (i, token) in tokenize(&"(x, y) -> foo".to_string()).into_iter().enumerate() {
+        for (i, token) in tokenize(&"(x, y) -> foo".to_string())
+            .into_iter()
+            .enumerate()
+        {
             assert_eq!(token.kind, result[i]);
         }
     }
@@ -1105,7 +1371,7 @@ mod tests {
             TokenKind::Comma,
             TokenKind::Number(Fraction::from(3)),
             TokenKind::RBrancket,
-            TokenKind::Eof
+            TokenKind::Eof,
         ];
         for (i, token) in tokenize(&"[1, 2, 3]".to_string()).into_iter().enumerate() {
             assert_eq!(token.kind, result[i]);
@@ -1116,9 +1382,12 @@ mod tests {
             TokenKind::Comma,
             TokenKind::String("World".into()),
             TokenKind::RBrancket,
-            TokenKind::Eof
+            TokenKind::Eof,
         ];
-        for (i, token) in tokenize(&"[\"Hello\", \"World\"]".to_string()).into_iter().enumerate() {
+        for (i, token) in tokenize(&"[\"Hello\", \"World\"]".to_string())
+            .into_iter()
+            .enumerate()
+        {
             assert_eq!(token.kind, result[i]);
         }
     }
@@ -1131,9 +1400,12 @@ mod tests {
             TokenKind::Identifier("f1".into()),
             TokenKind::RArrow,
             TokenKind::Identifier("f2".into()),
-            TokenKind::Eof
+            TokenKind::Eof,
         ];
-        for (i, token) in tokenize(&"1 -> f1 -> f2".to_string()).into_iter().enumerate() {
+        for (i, token) in tokenize(&"1 -> f1 -> f2".to_string())
+            .into_iter()
+            .enumerate()
+        {
             assert_eq!(token.kind, result[i]);
         }
     }
@@ -1154,9 +1426,12 @@ mod tests {
             TokenKind::Identifier("x".into()),
             TokenKind::Plus,
             TokenKind::Number(Fraction::from(1)),
-            TokenKind::Eof
+            TokenKind::Eof,
         ];
-        for (i, token) in tokenize(&"val inc = \\|x: number| => x + 1".to_string()).into_iter().enumerate() {
+        for (i, token) in tokenize(&"val inc = \\|x: number| => x + 1".to_string())
+            .into_iter()
+            .enumerate()
+        {
             assert_eq!(token.kind, result[i]);
         }
     }
@@ -1174,9 +1449,12 @@ mod tests {
             TokenKind::Number(Fraction::from(1)),
             TokenKind::Eof,
             TokenKind::RBrace,
-            TokenKind::Eof
+            TokenKind::Eof,
         ];
-        for (i, token) in tokenize(&"if x == 1 {\n return 1\n }".to_string()).into_iter().enumerate() {
+        for (i, token) in tokenize(&"if x == 1 {\n return 1\n }".to_string())
+            .into_iter()
+            .enumerate()
+        {
             assert_eq!(token.kind, result[i]);
         }
     }
@@ -1202,9 +1480,12 @@ mod tests {
             TokenKind::Number(Fraction::from(0)),
             TokenKind::Eof,
             TokenKind::RBrace,
-            TokenKind::Eof
+            TokenKind::Eof,
         ];
-        for (i, token) in tokenize(&"if x == 1 {\n return 1\n } else {\n return 0 \n}".to_string()).into_iter().enumerate() {
+        for (i, token) in tokenize(&"if x == 1 {\n return 1\n } else {\n return 0 \n}".to_string())
+            .into_iter()
+            .enumerate()
+        {
             assert_eq!(token.kind, result[i]);
         }
     }
@@ -1242,9 +1523,15 @@ mod tests {
             TokenKind::Number(Fraction::from(0)),
             TokenKind::Eof,
             TokenKind::RBrace,
-            TokenKind::Eof
+            TokenKind::Eof,
         ];
-        for (i, token) in tokenize(&"if x == 1 {\n return 1\n } else if x == 2 {\n return 2 \n} else {\n return 0 \n}".to_string()).into_iter().enumerate() {
+        for (i, token) in tokenize(
+            &"if x == 1 {\n return 1\n } else if x == 2 {\n return 2 \n} else {\n return 0 \n}"
+                .to_string(),
+        )
+        .into_iter()
+        .enumerate()
+        {
             assert_eq!(token.kind, result[i]);
         }
     }
@@ -1255,7 +1542,7 @@ mod tests {
             TokenKind::Identifier("f1".into()),
             TokenKind::LParen,
             TokenKind::RParen,
-            TokenKind::Eof
+            TokenKind::Eof,
         ];
         for (i, token) in tokenize(&"f1()".to_string()).into_iter().enumerate() {
             assert_eq!(token.kind, result[i]);
@@ -1268,7 +1555,7 @@ mod tests {
             TokenKind::Number(Fraction::from(1)),
             TokenKind::Eq,
             TokenKind::Number(Fraction::from(1)),
-            TokenKind::Eof
+            TokenKind::Eof,
         ];
         for (i, token) in tokenize(&"1 == 1".to_string()).into_iter().enumerate() {
             assert_eq!(token.kind, result[i]);
@@ -1278,7 +1565,7 @@ mod tests {
             TokenKind::Number(Fraction::from(2)),
             TokenKind::Gt,
             TokenKind::Number(Fraction::from(1)),
-            TokenKind::Eof
+            TokenKind::Eof,
         ];
 
         for (i, token) in tokenize(&"2 > 1".to_string()).into_iter().enumerate() {
@@ -1289,7 +1576,7 @@ mod tests {
             TokenKind::Number(Fraction::from(3)),
             TokenKind::Gte,
             TokenKind::Number(Fraction::from(3)),
-            TokenKind::Eof
+            TokenKind::Eof,
         ];
         for (i, token) in tokenize(&"3 >= 3".to_string()).into_iter().enumerate() {
             assert_eq!(token.kind, result[i]);
@@ -1299,7 +1586,7 @@ mod tests {
             TokenKind::Number(Fraction::from(1)),
             TokenKind::Lt,
             TokenKind::Number(Fraction::from(2)),
-            TokenKind::Eof
+            TokenKind::Eof,
         ];
         for (i, token) in tokenize(&"1 < 2".to_string()).into_iter().enumerate() {
             assert_eq!(token.kind, result[i]);
@@ -1309,7 +1596,7 @@ mod tests {
             TokenKind::Number(Fraction::from(4)),
             TokenKind::Lte,
             TokenKind::Number(Fraction::from(4)),
-            TokenKind::Eof
+            TokenKind::Eof,
         ];
         for (i, token) in tokenize(&"4 <= 4".to_string()).into_iter().enumerate() {
             assert_eq!(token.kind, result[i]);
@@ -1333,9 +1620,12 @@ mod tests {
             TokenKind::Identifier("number".into()),
             TokenKind::Eof,
             TokenKind::RBrace,
-            TokenKind::Eof
+            TokenKind::Eof,
         ];
-        for (i, token) in tokenize(&"struct Point {\n x: number,\n y: number\n }".to_string()).into_iter().enumerate() {
+        for (i, token) in tokenize(&"struct Point {\n x: number,\n y: number\n }".to_string())
+            .into_iter()
+            .enumerate()
+        {
             assert_eq!(token.kind, result[i]);
         }
         let result = vec![
@@ -1355,9 +1645,13 @@ mod tests {
             TokenKind::Identifier("number".into()),
             TokenKind::Eof,
             TokenKind::RBrace,
-            TokenKind::Eof
+            TokenKind::Eof,
         ];
-        for (i, token) in tokenize(&"pub struct Point {\n pub x: number,\n y: number\n }".to_string()).into_iter().enumerate() {
+        for (i, token) in
+            tokenize(&"pub struct Point {\n pub x: number,\n y: number\n }".to_string())
+                .into_iter()
+                .enumerate()
+        {
             assert_eq!(token.kind, result[i]);
         }
     }
@@ -1374,9 +1668,12 @@ mod tests {
             TokenKind::Colon,
             TokenKind::Number(Fraction::from(2)),
             TokenKind::RBrace,
-            TokenKind::Eof
+            TokenKind::Eof,
         ];
-        for (i, token) in tokenize(&"Point { x: 1, y: 2 }".to_string()).into_iter().enumerate() {
+        for (i, token) in tokenize(&"Point { x: 1, y: 2 }".to_string())
+            .into_iter()
+            .enumerate()
+        {
             assert_eq!(token.kind, result[i]);
         }
     }
@@ -1397,9 +1694,12 @@ mod tests {
             TokenKind::Colon,
             TokenKind::Number(Fraction::from(2)),
             TokenKind::RBrace,
-            TokenKind::Eof
+            TokenKind::Eof,
         ];
-        for (i, token) in tokenize(&"val point = Point { x: 1, y: 2 }".to_string()).into_iter().enumerate() {
+        for (i, token) in tokenize(&"val point = Point { x: 1, y: 2 }".to_string())
+            .into_iter()
+            .enumerate()
+        {
             assert_eq!(token.kind, result[i]);
         }
     }
@@ -1410,7 +1710,7 @@ mod tests {
             TokenKind::Identifier("point".into()),
             TokenKind::Dot,
             TokenKind::Identifier("x".into()),
-            TokenKind::Eof
+            TokenKind::Eof,
         ];
         for (i, token) in tokenize(&"point.x".to_string()).into_iter().enumerate() {
             assert_eq!(token.kind, result[i]);
@@ -1419,8 +1719,35 @@ mod tests {
 
     #[test]
     fn test_impl() {
-        let result = vec![TokenKind::Impl, TokenKind::Identifier("Point".into()), TokenKind::LBrace, TokenKind::Eof, TokenKind::Function, TokenKind::Identifier("x".into()), TokenKind::Equal, TokenKind::LParen, TokenKind::Identifier("self".into()), TokenKind::Colon, TokenKind::Identifier("Point".into()), TokenKind::RParen, TokenKind::LBrace, TokenKind::Eof, TokenKind::Identifier("self".into()), TokenKind::Dot, TokenKind::Identifier("x".into()), TokenKind::Eof, TokenKind::RBrace, TokenKind::Eof, TokenKind::RBrace, TokenKind::Eof];
-        for (i, token) in tokenize(&"impl Point {\n fun x = (self: Point) {\n self.x\n }\n }".to_string()).into_iter().enumerate() {
+        let result = vec![
+            TokenKind::Impl,
+            TokenKind::Identifier("Point".into()),
+            TokenKind::LBrace,
+            TokenKind::Eof,
+            TokenKind::Function,
+            TokenKind::Identifier("x".into()),
+            TokenKind::Equal,
+            TokenKind::LParen,
+            TokenKind::Identifier("self".into()),
+            TokenKind::Colon,
+            TokenKind::Identifier("Point".into()),
+            TokenKind::RParen,
+            TokenKind::LBrace,
+            TokenKind::Eof,
+            TokenKind::Identifier("self".into()),
+            TokenKind::Dot,
+            TokenKind::Identifier("x".into()),
+            TokenKind::Eof,
+            TokenKind::RBrace,
+            TokenKind::Eof,
+            TokenKind::RBrace,
+            TokenKind::Eof,
+        ];
+        for (i, token) in
+            tokenize(&"impl Point {\n fun x = (self: Point) {\n self.x\n }\n }".to_string())
+                .into_iter()
+                .enumerate()
+        {
             assert_eq!(token.kind, result[i]);
         }
     }
@@ -1435,11 +1762,7 @@ mod tests {
 
     #[test]
     fn test_commnet_line() {
-
-        assert_eq!(
-            tokenize(&"// comment".to_string())[0].kind,
-            TokenKind::Eof
-        );
+        assert_eq!(tokenize(&"// comment".to_string())[0].kind, TokenKind::Eof);
     }
 
     #[test]
@@ -1450,7 +1773,7 @@ mod tests {
             TokenKind::Number(Fraction::from(2)),
             TokenKind::Plus,
             TokenKind::Number(Fraction::from(3)),
-            TokenKind::Eof
+            TokenKind::Eof,
         ];
         for (i, token) in tokenize(&"1\t+ 2\t+ 3".to_string()).into_iter().enumerate() {
             assert_eq!(token.kind, result[i]);
@@ -1459,7 +1782,12 @@ mod tests {
 
     #[test]
     fn test_identifier() {
-        let result = vec![TokenKind::Identifier("x".into()), TokenKind::LBrancket, TokenKind::RBrancket, TokenKind::Eof];
+        let result = vec![
+            TokenKind::Identifier("x".into()),
+            TokenKind::LBrancket,
+            TokenKind::RBrancket,
+            TokenKind::Eof,
+        ];
         for (i, token) in tokenize(&"x[]".to_string()).into_iter().enumerate() {
             assert_eq!(token.kind, result[i]);
         }
@@ -1478,17 +1806,33 @@ mod tests {
             TokenKind::Comma,
             TokenKind::Number(Fraction::from(3)),
             TokenKind::RBrancket,
-            TokenKind::Eof
+            TokenKind::Eof,
         ];
-        for (i, token) in tokenize(&"for x in [1, 2, 3]".to_string()).into_iter().enumerate() {
+        for (i, token) in tokenize(&"for x in [1, 2, 3]".to_string())
+            .into_iter()
+            .enumerate()
+        {
             assert_eq!(token.kind, result[i]);
         }
     }
 
     #[test]
     fn test_import() {
-        let token_kinds = vec![TokenKind::Import, TokenKind::Identifier("foo1".into()), TokenKind::Comma, TokenKind::Identifier("foo2".into()), TokenKind::Comma, TokenKind::Identifier("foo3".into()), TokenKind::From, TokenKind::Identifier("Foo".into()), TokenKind::Eof];
-        for (i, token) in tokenize(&"import foo1,foo2, foo3 from Foo".to_string()).into_iter().enumerate() {
+        let token_kinds = vec![
+            TokenKind::Import,
+            TokenKind::Identifier("foo1".into()),
+            TokenKind::Comma,
+            TokenKind::Identifier("foo2".into()),
+            TokenKind::Comma,
+            TokenKind::Identifier("foo3".into()),
+            TokenKind::From,
+            TokenKind::Identifier("Foo".into()),
+            TokenKind::Eof,
+        ];
+        for (i, token) in tokenize(&"import foo1,foo2, foo3 from Foo".to_string())
+            .into_iter()
+            .enumerate()
+        {
             assert_eq!(token.kind, token_kinds[i]);
         }
     }
@@ -1500,16 +1844,24 @@ mod tests {
             TokenKind::Identifier("foo1".into()),
             TokenKind::Equal,
             TokenKind::Number(Fraction::from(1)),
-            TokenKind::Eof
+            TokenKind::Eof,
         ];
-        for (i, token) in tokenize(&"pub foo1 = 1".to_string()).into_iter().enumerate() {
+        for (i, token) in tokenize(&"pub foo1 = 1".to_string())
+            .into_iter()
+            .enumerate()
+        {
             assert_eq!(token.kind, result[i]);
         }
     }
 
     #[test]
     fn test_convert_number() {
-        let result = vec![TokenKind::Number(Fraction::from(1.2)), TokenKind::Dot, TokenKind::Identifier("a".into()), TokenKind::Eof];
+        let result = vec![
+            TokenKind::Number(Fraction::from(1.2)),
+            TokenKind::Dot,
+            TokenKind::Identifier("a".into()),
+            TokenKind::Eof,
+        ];
         for (i, token) in tokenize(&"1.2.a".to_string()).into_iter().enumerate() {
             assert_eq!(token.kind, result[i]);
         }
@@ -1517,24 +1869,94 @@ mod tests {
 
     #[test]
     fn test_option() {
-        let result = vec![TokenKind::Mutable, TokenKind::Identifier("foo".into()), TokenKind::Colon, TokenKind::Option, TokenKind::Lt, TokenKind::Identifier("number".into()), TokenKind::Gt, TokenKind::Equal, TokenKind::Some, TokenKind::LParen, TokenKind::Number(Fraction::from(1)), TokenKind::RParen, TokenKind::Eof];
-        for (i, token) in tokenize(&"val mut foo: Option<number> = Some(1)".to_string()).into_iter().enumerate() {
+        let result = vec![
+            TokenKind::Mutable,
+            TokenKind::Identifier("foo".into()),
+            TokenKind::Colon,
+            TokenKind::Option,
+            TokenKind::Lt,
+            TokenKind::Identifier("number".into()),
+            TokenKind::Gt,
+            TokenKind::Equal,
+            TokenKind::Some,
+            TokenKind::LParen,
+            TokenKind::Number(Fraction::from(1)),
+            TokenKind::RParen,
+            TokenKind::Eof,
+        ];
+        for (i, token) in tokenize(&"val mut foo: Option<number> = Some(1)".to_string())
+            .into_iter()
+            .enumerate()
+        {
             assert_eq!(token.kind, result[i]);
         }
-        let result = vec![TokenKind::Mutable, TokenKind::Identifier("foo".into()), TokenKind::Colon, TokenKind::Option, TokenKind::Lt, TokenKind::Identifier("number".into()), TokenKind::Gt, TokenKind::Equal, TokenKind::None, TokenKind::Eof];
-        for (i, token) in tokenize(&"val mut foo: Option<number> = None".to_string()).into_iter().enumerate() {
+        let result = vec![
+            TokenKind::Mutable,
+            TokenKind::Identifier("foo".into()),
+            TokenKind::Colon,
+            TokenKind::Option,
+            TokenKind::Lt,
+            TokenKind::Identifier("number".into()),
+            TokenKind::Gt,
+            TokenKind::Equal,
+            TokenKind::None,
+            TokenKind::Eof,
+        ];
+        for (i, token) in tokenize(&"val mut foo: Option<number> = None".to_string())
+            .into_iter()
+            .enumerate()
+        {
             assert_eq!(token.kind, result[i]);
         }
     }
 
     #[test]
     fn test_result() {
-        let result = vec![TokenKind::Mutable, TokenKind::Identifier("foo".into()), TokenKind::Colon, TokenKind::Result, TokenKind::Lt, TokenKind::Identifier("number".into()), TokenKind::Comma, TokenKind::Identifier("string".into()), TokenKind::Gt, TokenKind::Equal, TokenKind::Success, TokenKind::LParen, TokenKind::Number(Fraction::from(1)), TokenKind::RParen, TokenKind::Eof];
-        for (i, token) in tokenize(&"val mut foo: Result<number, string> = Suc(1)".to_string()).into_iter().enumerate() {
+        let result = vec![
+            TokenKind::Mutable,
+            TokenKind::Identifier("foo".into()),
+            TokenKind::Colon,
+            TokenKind::Result,
+            TokenKind::Lt,
+            TokenKind::Identifier("number".into()),
+            TokenKind::Comma,
+            TokenKind::Identifier("string".into()),
+            TokenKind::Gt,
+            TokenKind::Equal,
+            TokenKind::Success,
+            TokenKind::LParen,
+            TokenKind::Number(Fraction::from(1)),
+            TokenKind::RParen,
+            TokenKind::Eof,
+        ];
+        for (i, token) in tokenize(&"val mut foo: Result<number, string> = Suc(1)".to_string())
+            .into_iter()
+            .enumerate()
+        {
             assert_eq!(token.kind, result[i]);
         }
-        let result = vec![TokenKind::Mutable, TokenKind::Identifier("foo".into()), TokenKind::Colon, TokenKind::Result, TokenKind::Lt, TokenKind::Identifier("number".into()), TokenKind::Comma, TokenKind::Identifier("string".into()), TokenKind::Gt, TokenKind::Equal, TokenKind::Failure, TokenKind::LParen, TokenKind::String("fail".into()), TokenKind::RParen, TokenKind::Eof];
-        for (i, token) in tokenize(&"val mut foo: Result<number, string> = Fail(\"fail\")".to_string()).into_iter().enumerate() {
+        let result = vec![
+            TokenKind::Mutable,
+            TokenKind::Identifier("foo".into()),
+            TokenKind::Colon,
+            TokenKind::Result,
+            TokenKind::Lt,
+            TokenKind::Identifier("number".into()),
+            TokenKind::Comma,
+            TokenKind::Identifier("string".into()),
+            TokenKind::Gt,
+            TokenKind::Equal,
+            TokenKind::Failure,
+            TokenKind::LParen,
+            TokenKind::String("fail".into()),
+            TokenKind::RParen,
+            TokenKind::Eof,
+        ];
+        for (i, token) in
+            tokenize(&"val mut foo: Result<number, string> = Fail(\"fail\")".to_string())
+                .into_iter()
+                .enumerate()
+        {
             assert_eq!(token.kind, result[i]);
         }
     }
@@ -1553,7 +1975,6 @@ mod tests {
 
     #[test]
     fn test_for_in_function() {
-
         let result = vec![
             TokenKind::Function,
             TokenKind::Identifier("f".into()),
@@ -1584,7 +2005,11 @@ mod tests {
             TokenKind::Eof,
         ];
 
-        for (i, token) in tokenize(&"fun f(xs: List<number>) {\n for x in xs {\n print(x)\n }\n }".to_string()).into_iter().enumerate() {
+        for (i, token) in
+            tokenize(&"fun f(xs: List<number>) {\n for x in xs {\n print(x)\n }\n }".to_string())
+                .into_iter()
+                .enumerate()
+        {
             assert_eq!(token.kind, result[i]);
         }
     }
@@ -1594,7 +2019,7 @@ mod tests {
             TokenKind::Number(Fraction::from(2)),
             TokenKind::Pow,
             TokenKind::Number(Fraction::from(3)),
-            TokenKind::Eof
+            TokenKind::Eof,
         ];
         for (i, token) in tokenize(&"2 ** 3".to_string()).into_iter().enumerate() {
             assert_eq!(token.kind, result[i]);

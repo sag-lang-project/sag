@@ -1,7 +1,7 @@
 use crate::ast::ASTNode;
+use crate::parsers::parse_error::ParseError;
 use crate::parsers::Parser;
 use crate::token::TokenKind;
-use crate::parsers::parse_error::ParseError;
 
 impl Parser {
     pub fn parse_prefix_op(&mut self, op: TokenKind) -> Result<ASTNode, ParseError> {
@@ -12,8 +12,7 @@ impl Parser {
             op,
             expr: Box::new(value),
             line,
-            column
+            column,
         })
     }
-
 }

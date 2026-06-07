@@ -1,11 +1,18 @@
 use crate::ast::ASTNode;
-use crate::value::Value;
-use crate::environment::{Env, ValueType, FunctionInfo, EnvVariableType};
+use crate::environment::{Env, EnvVariableType, FunctionInfo, ValueType};
 use crate::evals::eval;
 use crate::evals::runtime_error::RuntimeError;
+use crate::value::Value;
 
-
-pub fn function_node(name: String, arguments: Vec<ASTNode>, body: Box<ASTNode>, return_type: ValueType, _line: usize, _column: usize, env: &mut Env) -> Result<Value, RuntimeError> {
+pub fn function_node(
+    name: String,
+    arguments: Vec<ASTNode>,
+    body: Box<ASTNode>,
+    return_type: ValueType,
+    _line: usize,
+    _column: usize,
+    env: &mut Env,
+) -> Result<Value, RuntimeError> {
     let function_info = FunctionInfo {
         arguments,
         body: Some(*body),
@@ -16,7 +23,12 @@ pub fn function_node(name: String, arguments: Vec<ASTNode>, body: Box<ASTNode>, 
     Ok(Value::Function)
 }
 
-pub fn block_node(statements: Vec<ASTNode>, _line: usize, _column: usize, env: &mut Env) -> Result<Value, RuntimeError> {
+pub fn block_node(
+    statements: Vec<ASTNode>,
+    _line: usize,
+    _column: usize,
+    env: &mut Env,
+) -> Result<Value, RuntimeError> {
     let mut last_value = Value::Void;
     for statement in statements {
         let value = eval(statement, env)?;
@@ -34,10 +46,14 @@ pub fn block_node(statements: Vec<ASTNode>, _line: usize, _column: usize, env: &
     Ok(last_value)
 }
 
-pub fn function_call_node(name: String, arguments: Box<ASTNode>, line: usize, column: usize, env: &mut Env) -> Result<Value, RuntimeError> {
-    if env.get_function(&name).is_some()
-        || env.get_builtin(&name).is_some()
-    {
+pub fn function_call_node(
+    name: String,
+    arguments: Box<ASTNode>,
+    line: usize,
+    column: usize,
+    env: &mut Env,
+) -> Result<Value, RuntimeError> {
+    if env.get_function(&name).is_some() || env.get_builtin(&name).is_some() {
         let function = match env.get_function(&name) {
             Some(function) => function.clone(),
             None => {
@@ -45,30 +61,59 @@ pub fn function_call_node(name: String, arguments: Box<ASTNode>, line: usize, co
                 if builtin.is_some() {
                     builtin.unwrap().clone()
                 } else {
-                    return Err(RuntimeError::new(format!("Function is missing: {:?}", name).as_str(), line, column));
+                    return Err(RuntimeError::new(
+                        format!("Function is missing: {:?}", name).as_str(),
+                        line,
+                        column,
+                    ));
                 }
             }
         };
         let mut params_vec = vec![];
         for arg in &function.arguments {
             params_vec.push(match arg {
-                ASTNode::Variable { name, value_type, .. } => (name, value_type),
-                _ => return Err(RuntimeError::new(format!("illigal param: {:?}", function.arguments).as_str(), line, column)),
+                ASTNode::Variable {
+                    name, value_type, ..
+                } => (name, value_type),
+                _ => {
+                    return Err(RuntimeError::new(
+                        format!("illigal param: {:?}", function.arguments).as_str(),
+                        line,
+                        column,
+                    ))
+                }
             });
         }
 
         let args_vec = match *arguments {
-            ASTNode::FunctionCallArgs{args: arguments, ..} => arguments,
-            _ => return Err(RuntimeError::new(format!("illigal arguments: {:?}", arguments).as_str(), line, column)),
+            ASTNode::FunctionCallArgs {
+                args: arguments, ..
+            } => arguments,
+            _ => {
+                return Err(RuntimeError::new(
+                    format!("illigal arguments: {:?}", arguments).as_str(),
+                    line,
+                    column,
+                ))
+            }
         };
 
         if let Some(func) = function.builtin {
-            let result = func(args_vec.iter().map(|arg| eval(arg.clone(), env)).collect::<Result<Vec<Value>, RuntimeError>>()?);
+            let result = func(
+                args_vec
+                    .iter()
+                    .map(|arg| eval(arg.clone(), env))
+                    .collect::<Result<Vec<Value>, RuntimeError>>()?,
+            );
             return Ok(result);
         };
 
         if args_vec.len() != function.arguments.len() {
-            return Err(RuntimeError::new("does not match arguments length", line, column));
+            return Err(RuntimeError::new(
+                "does not match arguments length",
+                line,
+                column,
+            ));
         }
 
         let mut local_env = env.clone();
@@ -88,7 +133,6 @@ pub fn function_call_node(name: String, arguments: Box<ASTNode>, line: usize, co
             );
         }
 
-
         let result = eval(function.body.unwrap(), &mut local_env)?;
         env.update_global_env(&local_env);
 
@@ -98,34 +142,57 @@ pub fn function_call_node(name: String, arguments: Box<ASTNode>, line: usize, co
         } else {
             Ok(result)
         }
-    } else if env
-        .get(&name, Some(&ValueType::Lambda))
-        .is_some()
-    {
+    } else if env.get(&name, Some(&ValueType::Lambda)).is_some() {
         let lambda = match env.get(&name, None).unwrap().value.clone() {
             Value::Lambda {
                 arguments,
                 body,
                 env: lambda_env,
             } => (arguments, body, lambda_env),
-            _ => return Err(RuntimeError::new(format!("Function is missing: {:?}", name).as_str(), line, column)),
+            _ => {
+                return Err(RuntimeError::new(
+                    format!("Function is missing: {:?}", name).as_str(),
+                    line,
+                    column,
+                ))
+            }
         };
 
         let mut params_vec = vec![];
         for arg in &lambda.0 {
             params_vec.push(match arg {
-                ASTNode::Variable { name, value_type, .. } => (name, value_type),
-                _ => return Err(RuntimeError::new(format!("illigal param: {:?}", lambda.0).as_str(), line, column)),
+                ASTNode::Variable {
+                    name, value_type, ..
+                } => (name, value_type),
+                _ => {
+                    return Err(RuntimeError::new(
+                        format!("illigal param: {:?}", lambda.0).as_str(),
+                        line,
+                        column,
+                    ))
+                }
             });
         }
 
         let args_vec = match *arguments {
-            ASTNode::FunctionCallArgs{args: arguments, ..} => arguments,
-            _ => return Err(RuntimeError::new(format!("illigal arguments: {:?}", arguments).as_str(), line, column)),
+            ASTNode::FunctionCallArgs {
+                args: arguments, ..
+            } => arguments,
+            _ => {
+                return Err(RuntimeError::new(
+                    format!("illigal arguments: {:?}", arguments).as_str(),
+                    line,
+                    column,
+                ))
+            }
         };
 
         if args_vec.len() != lambda.0.len() {
-            return Err(RuntimeError::new("does not match arguments length", line, column));
+            return Err(RuntimeError::new(
+                "does not match arguments length",
+                line,
+                column,
+            ));
         }
 
         let mut local_env = env.clone();
@@ -152,6 +219,10 @@ pub fn function_call_node(name: String, arguments: Box<ASTNode>, line: usize, co
         env.leave_scope();
         Ok(result)
     } else {
-        Err(RuntimeError::new(format!("Function is missing: {:?}", name).as_str(), line, column))
+        Err(RuntimeError::new(
+            format!("Function is missing: {:?}", name).as_str(),
+            line,
+            column,
+        ))
     }
 }

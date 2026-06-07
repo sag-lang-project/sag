@@ -1,7 +1,7 @@
-use std::collections::HashMap;
+use crate::environment::{EnvVariableType, ValueType};
 use crate::token::TokenKind;
 use crate::value::Value;
-use crate::environment::{ValueType, EnvVariableType};
+use std::collections::HashMap;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum ASTNode {
@@ -150,7 +150,7 @@ pub enum ASTNode {
     },
     Struct {
         name: String,
-        fields: HashMap<String, ASTNode>,  // field_name: StructField
+        fields: HashMap<String, ASTNode>, // field_name: StructField
         line: usize,
         column: usize,
     },
@@ -161,13 +161,13 @@ pub enum ASTNode {
         column: usize,
     },
     StructFieldAccess {
-        instance: Box<ASTNode>,  // StructInstance, variable
+        instance: Box<ASTNode>, // StructInstance, variable
         field_name: String,
         line: usize,
         column: usize,
     },
     StructFieldAssign {
-        instance: Box<ASTNode>,  // StructInstance, variable
+        instance: Box<ASTNode>, // StructInstance, variable
         field_name: String,
         value: Box<ASTNode>,
         line: usize,
