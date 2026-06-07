@@ -14,7 +14,8 @@ pub fn prefix_op(
 ) -> Result<Value, RuntimeError> {
     let value = eval(*expr, env)?;
     match (op.clone(), value) {
-        (TokenKind::Minus, Value::Number(v)) => Ok(Value::Number(-v)),
+        (TokenKind::Minus, Value::Int(v)) => Ok(Value::Int(-v)),
+        (TokenKind::Minus, Value::Number(v)) => Ok(Value::from_fraction(-v)),
         _ => Err(RuntimeError::new(
             format!("Unexpected prefix op: {:?}", op).as_str(),
             line,

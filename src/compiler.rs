@@ -687,7 +687,7 @@ impl Vm {
 
         while ip < code.len() {
             match &code[ip] {
-                Instr::PushNum(n) => stack.push(Value::Number(n.clone())),
+                Instr::PushNum(n) => stack.push(Value::from_fraction(n.clone())),
                 Instr::PushString(s) => stack.push(Value::String(s.clone())),
                 Instr::PushBool(b) => stack.push(Value::Bool(*b)),
                 Instr::PushVoid => stack.push(Value::Void),
@@ -783,7 +783,8 @@ impl Vm {
                 Instr::Neg => {
                     let value = stack.pop().ok_or_else(|| "stack underflow".to_string())?;
                     match value {
-                        Value::Number(n) => stack.push(Value::Number(-n)),
+                        Value::Int(n) => stack.push(Value::Int(-n)),
+                        Value::Number(n) => stack.push(Value::from_fraction(-n)),
                         _ => return Err("NEG expects number".into()),
                     }
                 }
@@ -893,8 +894,8 @@ impl Vm {
                     return Err("len() takes exactly one argument".into());
                 }
                 match &args[0] {
-                    Value::List(values) => Ok(Value::Number(Fraction::from(values.len()))),
-                    Value::String(s) => Ok(Value::Number(Fraction::from(s.len()))),
+                    Value::List(values) => Ok(Value::Int(values.len() as i64)),
+                    Value::String(s) => Ok(Value::Int(s.len() as i64)),
                     _ => Err("len() requires list or string".into()),
                 }
             }
@@ -938,15 +939,24 @@ pub(super) fn pop2(stack: &mut Vec<Value>) -> Result<(Value, Value), String> {
 
 pub(super) fn binary_op(left: Value, right: Value, op: &str) -> Result<Value, String> {
     match (left, right, op) {
-        (Value::Number(l), Value::Number(r), "add") => Ok(Value::Number(l + r)),
-        (Value::Number(l), Value::Number(r), "sub") => Ok(Value::Number(l - r)),
-        (Value::Number(l), Value::Number(r), "mul") => Ok(Value::Number(l * r)),
-        (Value::Number(l), Value::Number(r), "div") => Ok(Value::Number(l / r)),
-        (Value::Number(l), Value::Number(r), "mod") => Ok(Value::Number(l % r)),
+        (Value::Int(l), Value::Int(r), "add") => Ok(Value::Int(l + r)),
+        (Value::Int(l), Value::Int(r), "sub") => Ok(Value::Int(l - r)),
+        (Value::Int(l), Value::Int(r), "mul") => Ok(Value::Int(l * r)),
+        (Value::Int(l), Value::Int(r), "div") => Ok(Value::from_fraction(Fraction::from(l) / Fraction::from(r))),
+        (Value::Int(l), Value::Int(r), "mod") => Ok(Value::Int(l % r)),
+        (Value::Int(l), Value::Int(r), "pow") if r >= 0 => Ok(Value::Int(l.wrapping_pow(r as u32))),
+        (Value::Int(l), Value::Int(r), op) => binary_op(Value::Number(Fraction::from(l)), Value::Number(Fraction::from(r)), op),
+        (Value::Int(l), Value::Number(r), op) => binary_op(Value::Number(Fraction::from(l)), Value::Number(r), op),
+        (Value::Number(l), Value::Int(r), op) => binary_op(Value::Number(l), Value::Number(Fraction::from(r)), op),
+        (Value::Number(l), Value::Number(r), "add") => Ok(Value::from_fraction(l + r)),
+        (Value::Number(l), Value::Number(r), "sub") => Ok(Value::from_fraction(l - r)),
+        (Value::Number(l), Value::Number(r), "mul") => Ok(Value::from_fraction(l * r)),
+        (Value::Number(l), Value::Number(r), "div") => Ok(Value::from_fraction(l / r)),
+        (Value::Number(l), Value::Number(r), "mod") => Ok(Value::from_fraction(l % r)),
         (Value::Number(l), Value::Number(r), "pow") => {
             let raw_numer = l.numer().unwrap().wrapping_pow(*r.numer().unwrap() as u32);
             let raw_denom = l.denom().unwrap().wrapping_pow(*r.numer().unwrap() as u32);
-            Ok(Value::Number((raw_numer, raw_denom).into()))
+            Ok(Value::from_fraction((raw_numer, raw_denom).into()))
         }
         (Value::String(l), Value::String(r), "add") => Ok(Value::String(l + &r)),
         (Value::String(l), other, "add") => Ok(Value::String(l + &other.to_string())),
@@ -962,18 +972,30 @@ pub(super) fn compare_op(left: Value, right: Value, op: &str) -> Result<Value, S
         "eq" => left == right,
         "neq" => left != right,
         "lt" => match (&left, &right) {
+            (Value::Int(l), Value::Int(r)) => l < r,
+            (Value::Int(l), Value::Number(r)) => Fraction::from(*l) < *r,
+            (Value::Number(l), Value::Int(r)) => *l < Fraction::from(*r),
             (Value::Number(l), Value::Number(r)) => l < r,
             _ => return Err("LT expects numbers".into()),
         },
         "lte" => match (&left, &right) {
+            (Value::Int(l), Value::Int(r)) => l <= r,
+            (Value::Int(l), Value::Number(r)) => Fraction::from(*l) <= *r,
+            (Value::Number(l), Value::Int(r)) => *l <= Fraction::from(*r),
             (Value::Number(l), Value::Number(r)) => l <= r,
             _ => return Err("LTE expects numbers".into()),
         },
         "gt" => match (&left, &right) {
+            (Value::Int(l), Value::Int(r)) => l > r,
+            (Value::Int(l), Value::Number(r)) => Fraction::from(*l) > *r,
+            (Value::Number(l), Value::Int(r)) => *l > Fraction::from(*r),
             (Value::Number(l), Value::Number(r)) => l > r,
             _ => return Err("GT expects numbers".into()),
         },
         "gte" => match (&left, &right) {
+            (Value::Int(l), Value::Int(r)) => l >= r,
+            (Value::Int(l), Value::Number(r)) => Fraction::from(*l) >= *r,
+            (Value::Number(l), Value::Int(r)) => *l >= Fraction::from(*r),
             (Value::Number(l), Value::Number(r)) => l >= r,
             _ => return Err("GTE expects numbers".into()),
         },
@@ -984,16 +1006,16 @@ pub(super) fn compare_op(left: Value, right: Value, op: &str) -> Result<Value, S
 
 pub(super) fn builtin_range(args: Vec<Value>) -> Result<Value, String> {
     let (start, end, step) = match args.as_slice() {
-        [Value::Number(end)] => (0, *end.numer().unwrap() as i64, 1),
-        [Value::Number(start), Value::Number(end)] => (
-            *start.numer().unwrap() as i64,
-            *end.numer().unwrap() as i64,
+        [end] => (0, end.to_i64_if_integer().ok_or_else(|| "range() requires integer arguments".to_string())?, 1),
+        [start, end] => (
+            start.to_i64_if_integer().ok_or_else(|| "range() requires integer arguments".to_string())?,
+            end.to_i64_if_integer().ok_or_else(|| "range() requires integer arguments".to_string())?,
             1,
         ),
-        [Value::Number(start), Value::Number(end), Value::Number(step)] => (
-            *start.numer().unwrap() as i64,
-            *end.numer().unwrap() as i64,
-            *step.numer().unwrap() as i64,
+        [start, end, step] => (
+            start.to_i64_if_integer().ok_or_else(|| "range() requires integer arguments".to_string())?,
+            end.to_i64_if_integer().ok_or_else(|| "range() requires integer arguments".to_string())?,
+            step.to_i64_if_integer().ok_or_else(|| "range() requires integer arguments".to_string())?,
         ),
         _ => return Err("range() takes 1-3 numeric arguments".into()),
     };
@@ -1006,12 +1028,12 @@ pub(super) fn builtin_range(args: Vec<Value>) -> Result<Value, String> {
     let mut current = start;
     if step > 0 {
         while current < end {
-            values.push(Value::Number(Fraction::from(current)));
+            values.push(Value::Int(current));
             current += step;
         }
     } else {
         while current > end {
-            values.push(Value::Number(Fraction::from(current)));
+            values.push(Value::Int(current));
             current += step;
         }
     }

@@ -9,6 +9,7 @@ use std::fmt;
 pub enum Value {
     Option(Option<Box<Value>>),
     Result(Result<Box<Value>, Box<Value>>),
+    Int(i64),
     Number(Fraction),
     String(String),
     Bool(bool),
@@ -44,8 +45,17 @@ pub enum Value {
 }
 
 impl Value {
+    pub fn from_fraction(value: Fraction) -> Self {
+        if value.denom() == Some(&1) {
+            Value::Int(*value.numer().unwrap() as i64)
+        } else {
+            Value::Number(value)
+        }
+    }
+
     pub fn value_type(&self) -> ValueType {
         match self {
+            Value::Int(_) => ValueType::Number,
             Value::Number(_) => ValueType::Number,
             Value::String(_) => ValueType::String,
             Value::Bool(_) => ValueType::Bool,
@@ -150,8 +160,17 @@ impl Value {
     }
     pub fn to_number(&self) -> Fraction {
         match self {
+            Value::Int(value) => Fraction::from(*value),
             Value::Number(value) => value.clone(),
             _ => panic!("expected number"),
+        }
+    }
+
+    pub fn to_i64_if_integer(&self) -> Option<i64> {
+        match self {
+            Value::Int(value) => Some(*value),
+            Value::Number(value) if value.denom() == Some(&1) => Some(*value.numer().unwrap() as i64),
+            _ => None,
         }
     }
     pub fn to_str(&self) -> String {
@@ -177,6 +196,7 @@ impl Value {
 impl fmt::Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Value::Int(value) => write!(f, "{}", value),
             Value::Number(value) => write!(f, "{}", value),
             Value::String(s) => write!(f, "{}", s),
             Value::Bool(b) => write!(f, "{}", b),
