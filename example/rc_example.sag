@@ -1,0 +1,70 @@
+// Example demonstrating the benefits of Rc in SAG
+
+// Create a large list
+val large_list = range(1, 10000)
+
+// In the original implementation, this would create a full copy
+// With Rc, it just increments the reference count
+val shared_list = large_list
+
+// Function that captures the environment
+fun create_counter() {
+    val mut count = 0
+    return \|| => {
+        count = count + 1
+        return count
+    }
+}
+
+// Create multiple counters
+// In the original implementation, each would clone the entire environment
+// With Rc, they share the same environment
+val counter1 = create_counter()
+val counter2 = create_counter()
+
+print("Counter 1:", counter1())  // 1
+print("Counter 1:", counter1())  // 2
+print("Counter 2:", counter2())  // 1
+
+// Struct with methods
+struct Person {
+    name: string,
+    age: number
+}
+
+impl Person {
+    fun greet(self) {
+        print("Hello, my name is", self.name, "and I am", self.age, "years old")
+    }
+    
+    fun have_birthday(mut self) {
+        self.age = self.age + 1
+    }
+}
+
+// Create a person
+val person = Person { name: "Alice", age: 30 }
+
+// In the original implementation, this would create a full copy
+// With Rc, it just increments the reference count
+val same_person = person
+
+person.greet()  // Hello, my name is Alice and I am 30 years old
+
+// Demonstrate list operations
+val mut numbers = [1, 2, 3]
+numbers.push(4)  // With Rc, this creates a new list with the added element
+
+// Demonstrate dictionary operations
+val mut dict = { "a": 1, "b": 2 }
+dict["c"] = 3  // With Rc, this creates a new dictionary with the added key-value pair
+
+// Performance test: create many lambdas that capture their environment
+val lambdas = []
+for i in range(1, 100) {
+    val captured = i
+    lambdas.push(\|| => captured * 2)
+}
+
+// Test the lambdas
+print("Lambda result:", lambdas[50]())  // 102
